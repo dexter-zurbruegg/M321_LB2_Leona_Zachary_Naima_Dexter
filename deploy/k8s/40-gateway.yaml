@@ -1,0 +1,50 @@
+# Gateway (nginx + Frontend), 2 Replicas, von aussen erreichbar über NodePort 30080: http://<vm-ip>:30080
+# nginx braucht im Cluster den vollen DNS-Namen (*.svc.cluster.local), weil sein Resolver keine Suchdomains kennt.
+# _1 und _2 zeigen auf denselben Kubernetes-Service: die Verteilung auf die Pods macht hier Kubernetes.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: todo-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: gateway }
+  template:
+    metadata:
+      labels: { app: gateway }
+    spec:
+      containers:
+        - name: gateway
+          image: todo-app/gateway:1.0
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 8080 }]
+          env:
+            - { name: USER_UPSTREAM_1, value: user-service.todo-app.svc.cluster.local:3000 }
+            - { name: USER_UPSTREAM_2, value: user-service.todo-app.svc.cluster.local:3000 }
+            - { name: TODO_UPSTREAM_1, value: todo-service.todo-app.svc.cluster.local:3000 }
+            - { name: TODO_UPSTREAM_2, value: todo-service.todo-app.svc.cluster.local:3000 }
+            - { name: CATEGORY_UPSTREAM_1, value: category-service.todo-app.svc.cluster.local:3000 }
+            - { name: CATEGORY_UPSTREAM_2, value: category-service.todo-app.svc.cluster.local:3000 }
+            - { name: STATS_UPSTREAM_1, value: stats-service.todo-app.svc.cluster.local:3000 }
+            - { name: STATS_UPSTREAM_2, value: stats-service.todo-app.svc.cluster.local:3000 }
+          readinessProbe:
+            httpGet: { path: /health, port: 8080 }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /health, port: 8080 }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 25m, memory: 32Mi }
+            limits: { memory: 128Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+  namespace: todo-app
+spec:
+  type: NodePort
+  selector: { app: gateway }
+  ports:
+    - { port: 8080, nodePort: 30080 }

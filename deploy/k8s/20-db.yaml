@@ -1,0 +1,61 @@
+# PostgreSQL: eine Instanz mit persistentem Volume (N04). Bewusst nur 1 Replica: eine Datenbank-Replikation
+# wäre für dieses Projekt zu aufwendig -> dokumentierter Single Point of Failure (siehe docs/dokumentation.md).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: db-data
+  namespace: todo-app
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db
+  namespace: todo-app
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate # nie zwei Postgres-Pods gleichzeitig auf demselben Volume
+  selector:
+    matchLabels: { app: db }
+  template:
+    metadata:
+      labels: { app: db }
+    spec:
+      containers:
+        - name: db
+          image: todo-app/db:1.0
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 5432 }]
+          env:
+            - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
+          envFrom:
+            - secretRef: { name: todo-app-secrets }
+          readinessProbe:
+            exec: { command: [pg_isready, -U, postgres] }
+            periodSeconds: 5
+          livenessProbe:
+            exec: { command: [pg_isready, -U, postgres] }
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { memory: 512Mi }
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql/data }
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: db-data }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db
+  namespace: todo-app
+spec:
+  selector: { app: db }
+  ports: [{ port: 5432 }]
