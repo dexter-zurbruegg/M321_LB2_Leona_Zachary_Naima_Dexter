@@ -21,7 +21,6 @@ flowchart LR
     K --> DK[(categories)]
 ```
 
-(Ohne Mermaid-Ansicht: `Browser → nginx → {Benutzer, TODO, Kategorien, Statistik} je 2×`; TODO → Kategorien; Statistik → TODO + Kategorien; drei Datenbanken in einem PostgreSQL.)
 
 ## Die 6 Ideen, die man erklären können muss
 

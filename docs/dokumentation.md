@@ -94,25 +94,39 @@ Bewusst **nicht** umgesetzt (wie in der Planung): E-Mail-Erinnerungen, Teamfreig
 ## 3. Verteiltes System im Überblick
 
 ```mermaid
-flowchart TD
-    B["Browser<br/>(Frontend: HTML/CSS/JS)"] -->|"HTTP :8080"| G["Gateway: nginx<br/>Reverse Proxy + Loadbalancer<br/>liefert auch das Frontend aus"]
-    G -->|"/api/users, /api/auth"| U1["user-service-1"] & U2["user-service-2"]
-    G -->|"/api/todos"| T1["todo-service-1"] & T2["todo-service-2"]
-    G -->|"/api/categories"| K1["category-service-1"] & K2["category-service-2"]
-    G -->|"/api/stats"| S1["stats-service-1"] & S2["stats-service-2"]
-    T1 & T2 -.->|"Kategorie prüfen<br/>GET /categories/:id"| KS(("category-service"))
-    S1 & S2 -.->|"GET /todos"| TS(("todo-service"))
-    S1 & S2 -.->|"GET /categories"| KS
-    U1 & U2 -.->|"Konto löschen<br/>DELETE /todos, /categories"| TS & KS
-    U1 & U2 --> DBU[("DB users")]
-    T1 & T2 --> DBT[("DB todos")]
-    K1 & K2 --> DBK[("DB categories")]
-    subgraph PG["PostgreSQL (eine Instanz, drei getrennte Datenbanken)"]
-      DBU
-      DBT
-      DBK
+flowchart TB
+    B["Browser: Frontend (HTML/CSS/JS)"] -->|"HTTP :8080"| G["Gateway: nginx<br/>Reverse Proxy + Loadbalancer + Frontend"]
+    subgraph US["Benutzer-Service · Leona"]
+        direction LR
+        U1[user-service-1] ~~~ U2[user-service-2]
     end
+    subgraph TS["TODO-Service · Dexter"]
+        direction LR
+        T1[todo-service-1] ~~~ T2[todo-service-2]
+    end
+    subgraph KS["Kategorien-Service · Naima"]
+        direction LR
+        K1[category-service-1] ~~~ K2[category-service-2]
+    end
+    subgraph SS["Statistik-Service · Zachary"]
+        direction LR
+        S1[stats-service-1] ~~~ S2[stats-service-2]
+    end
+    G -->|"/api/users, /api/auth"| US
+    G -->|"/api/todos"| TS
+    G -->|"/api/categories"| KS
+    G -->|"/api/stats"| SS
+    TS -.->|"Kategorie prüfen"| KS
+    SS -.->|"TODOs lesen"| TS
+    SS -.->|"Kategorienamen"| KS
+    US -.->|"Konto löschen"| TS
+    US --> DBU[("DB users")]
+    TS --> DBT[("DB todos")]
+    KS --> DBK[("DB categories")]
 ```
+
+Durchgezogene Pfeile: Anfragen über den Proxy bzw. Zugriff auf die eigene Datenbank. Gestrichelt: Aufrufe zwischen Services über deren API (immer mit dem JWT des Benutzers).
+Die drei Datenbanken liegen in **einer** PostgreSQL-Instanz, jede mit eigenem DB-Benutzer. Beim Konto löschen ruft der Benutzer-Service auch den Kategorien-Service auf.
 
 **So hängt alles zusammen:**
 
