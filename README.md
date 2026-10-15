@@ -86,7 +86,7 @@ docker compose --env-file ../../.env up -d --build      # analog category-servic
 | stats-service | 8084 | `TODO_SERVICE_URL`, `CATEGORY_SERVICE_URL` |
 
 Die Adressen der anderen Services werden als Umgebungsvariable mitgegeben, z. B.
-`CATEGORY_SERVICE_URL=http://10.4.31.11:8083 docker compose --env-file ../../.env up -d`.
+`CATEGORY_SERVICE_URL=http://10.0.0.11:8083 docker compose --env-file ../../.env up -d`.
 Ohne Angabe sucht der Service die anderen auf derselben VM (Ports 8081–8084).
 **Wichtig:** Alle VMs brauchen dasselbe `JWT_SECRET` (gleiche `.env` verteilen, nicht per Git).
 
@@ -94,10 +94,10 @@ Das Gateway mit dem Frontend läuft dann z. B. auf einer VM und kennt pro Servic
 
 ```bash
 cd gateway
-USER_UPSTREAM_1=10.4.31.10:8081 USER_UPSTREAM_2=10.4.31.10:8081 \
-TODO_UPSTREAM_1=10.4.31.12:8082 TODO_UPSTREAM_2=10.4.31.12:8082 \
-CATEGORY_UPSTREAM_1=10.4.31.11:8083 CATEGORY_UPSTREAM_2=10.4.31.11:8083 \
-STATS_UPSTREAM_1=10.4.31.13:8084 STATS_UPSTREAM_2=10.4.31.13:8084 \
+USER_UPSTREAM_1=10.0.0.10:8081 USER_UPSTREAM_2=10.0.0.10:8081 \
+TODO_UPSTREAM_1=10.0.0.12:8082 TODO_UPSTREAM_2=10.0.0.12:8082 \
+CATEGORY_UPSTREAM_1=10.0.0.11:8083 CATEGORY_UPSTREAM_2=10.0.0.11:8083 \
+STATS_UPSTREAM_1=10.0.0.13:8084 STATS_UPSTREAM_2=10.0.0.13:8084 \
 docker compose up -d --build
 ```
 
