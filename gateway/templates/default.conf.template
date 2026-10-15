@@ -1,0 +1,79 @@
+# Reverse Proxy / Loadbalancer (Dexter + Leona): einziger Einstiegspunkt für Browser und API.
+#   /            -> Frontend (statische Dateien)
+#   /api/<x>/... -> Backend-Service <x> (ohne /api-Präfix)
+# Die Adressen der Instanzen kommen aus Umgebungsvariablen (*_UPSTREAM_1/_2) -> dieselbe Konfiguration für Compose,
+# Kubernetes und verteilte VMs. "resolve" fragt den DNS regelmässig neu ab: startet eine Instanz mit neuer IP neu,
+# merkt nginx das.
+
+resolver ${NGINX_LOCAL_RESOLVERS} valid=5s ipv6=off;
+
+# Pro Service zwei Instanzen (_1 und _2). In Kubernetes zeigen beide auf denselben Service-Namen,
+# dort verteilt Kubernetes selbst auf die Pods.
+upstream user_service {
+    zone user_service 64k;
+    server ${USER_UPSTREAM_1} resolve max_fails=1 fail_timeout=3s;
+    server ${USER_UPSTREAM_2} resolve max_fails=1 fail_timeout=3s;
+}
+upstream todo_service {
+    zone todo_service 64k;
+    server ${TODO_UPSTREAM_1} resolve max_fails=1 fail_timeout=3s;
+    server ${TODO_UPSTREAM_2} resolve max_fails=1 fail_timeout=3s;
+}
+upstream category_service {
+    zone category_service 64k;
+    server ${CATEGORY_UPSTREAM_1} resolve max_fails=1 fail_timeout=3s;
+    server ${CATEGORY_UPSTREAM_2} resolve max_fails=1 fail_timeout=3s;
+}
+upstream stats_service {
+    zone stats_service 64k;
+    server ${STATS_UPSTREAM_1} resolve max_fails=1 fail_timeout=3s;
+    server ${STATS_UPSTREAM_2} resolve max_fails=1 fail_timeout=3s;
+}
+
+log_format json escape=json '{"time":"$time_iso8601","requestId":"$request_id","method":"$request_method",'
+                            '"uri":"$request_uri","status":$status,"upstream":"$upstream_addr","ms":"$request_time"}';
+
+server {
+    listen ${LISTEN_PORT};
+    access_log /dev/stdout json;
+
+    # HA-Massnahme 1: fällt eine Instanz aus (Verbindung abgelehnt oder Timeout), versucht nginx sofort die andere.
+    # Eine ausgefallene Instanz wird 3 s lang nicht mehr angefragt (max_fails/fail_timeout oben).
+    # Kein Wiederholen bei 503: das meldet ein Service, wenn SEINE Abhängigkeit fehlt; die andere Instanz hätte dasselbe Problem.
+    proxy_connect_timeout 1s;
+    proxy_read_timeout 10s;
+    proxy_next_upstream error timeout;
+    proxy_next_upstream_tries 3;
+    # Korrelations-ID: dieselbe ID erscheint in den Logs von nginx und allen beteiligten Services.
+    proxy_set_header X-Request-Id $request_id;
+    proxy_set_header Host $host;
+    proxy_hide_header X-Request-Id; # die Services senden sie auch, so steht sie nur einmal in der Antwort
+    add_header X-Request-Id $request_id always;
+
+    location /api/auth/       { rewrite ^/api(/.*)$ $1 break; proxy_pass http://user_service; }
+    location /api/users       { rewrite ^/api(/.*)$ $1 break; proxy_pass http://user_service; }
+    location /api/todos       { rewrite ^/api(/.*)$ $1 break; proxy_pass http://todo_service; }
+    location /api/categories  { rewrite ^/api(/.*)$ $1 break; proxy_pass http://category_service; }
+    location /api/stats       { rewrite ^/api(/.*)$ $1 break; proxy_pass http://stats_service; }
+
+    # Health jedes Services von aussen: /api/health/user, /api/health/todo, ...
+    location = /api/health/user     { rewrite ^ /health break; proxy_pass http://user_service; }
+    location = /api/health/todo     { rewrite ^ /health break; proxy_pass http://todo_service; }
+    location = /api/health/category { rewrite ^ /health break; proxy_pass http://category_service; }
+    location = /api/health/stats    { rewrite ^ /health break; proxy_pass http://stats_service; }
+    location = /health { default_type application/json; return 200 '{"status":"ok","service":"gateway"}'; }
+
+    # Unbekannte API-Pfade und nicht erreichbare Services -> JSON-Fehler im gleichen Format wie die Services.
+    location /api/ { default_type application/json; return 404 '{"error":{"code":"NOT_FOUND","message":"Route nicht gefunden"}}'; }
+    error_page 502 503 504 = @unavailable;
+    location @unavailable {
+        default_type application/json;
+        return 503 '{"error":{"code":"SERVICE_UNAVAILABLE","message":"Dieser Dienst ist gerade nicht erreichbar, bitte später erneut versuchen"}}';
+    }
+
+    location / {
+        root /usr/share/nginx/html;
+        try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-cache";
+    }
+}
