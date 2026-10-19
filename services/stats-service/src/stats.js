@@ -11,7 +11,8 @@ function averageCompletionSeconds(todos) {
   // Regel 5.3.4: nur aktuell erledigte TODOs mit completedAt zählen.
   const durations = todos
     .filter((t) => t.status === 'done' && t.completedAt)
-    .map((t) => (new Date(t.completedAt) - new Date(t.createdAt)) / 1000);
+    .map((t) => (new Date(t.completedAt) - new Date(t.createdAt)) / 1000)
+    .filter((duration) => Number.isFinite(duration) && duration >= 0);
   if (!durations.length) return null;
   return Math.round(durations.reduce((a, b) => a + b, 0) / durations.length);
 }
@@ -44,7 +45,7 @@ function computeStats(todos, categories = null, now = new Date()) {
   return {
     ...countByStatus(todos),
     averageCompletionSeconds: averageCompletionSeconds(todos),
-    completedLast7Days: todos.filter((t) => t.status === 'done' && t.completedAt && now - new Date(t.completedAt) <= 7 * DAY_MS)
+    completedLast7Days: todos.filter((t) => t.status === 'done' && t.completedAt && now - new Date(t.completedAt) >= 0 && now - new Date(t.completedAt) <= 7 * DAY_MS)
       .length,
     categoriesAvailable: categories !== null,
     byCategory: byCategory(todos, categories),

@@ -7,8 +7,8 @@ const { callService } = require('./client');
 const { computeStats } = require('./stats');
 const { HttpError, requestContext, notFound, errorHandler, log } = require('./http');
 
-const TODO_URL = process.env.TODO_SERVICE_URL || 'http://todo-service:3000';
-const CATEGORY_URL = process.env.CATEGORY_SERVICE_URL || 'http://category-service:3000';
+const TODO_URL = (process.env.TODO_SERVICE_URL || 'http://todo-service:3000').replace(/\/+$/, '');
+const CATEGORY_URL = (process.env.CATEGORY_SERVICE_URL || 'http://category-service:3000').replace(/\/+$/, '');
 const INSTANCE = os.hostname();
 
 // Kategorien sind nur "nice to have" (Namen für die Auswertung pro Kategorie).
@@ -19,7 +19,7 @@ async function loadCategories(req) {
       token: req.token,
       requestId: req.id,
     });
-    return res.ok ? res.data : null;
+    return res.ok && Array.isArray(res.data) ? res.data : null;
   } catch (err) {
     log({ level: 'warn', requestId: req.id, message: `Statistik ohne Kategorienamen: ${err.message}` });
     return null;
@@ -40,6 +40,7 @@ app.get('/stats', requireAuth, async (req, res) => {
   ]);
   if (response.status === 401) throw new HttpError(401, 'UNAUTHORIZED', 'Anmeldung ungültig oder abgelaufen');
   if (!response.ok) throw new HttpError(502, 'TODO_FETCH_FAILED', 'TODO-Daten konnten nicht geladen werden');
+  if (!Array.isArray(response.data)) throw new HttpError(503, 'DEPENDENCY_UNAVAILABLE', 'Der TODO-Service liefert ungültige Daten');
   res.json(computeStats(response.data, categories));
 });
 
