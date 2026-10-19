@@ -1,5 +1,7 @@
 # Erklär-Doku Zachary: Statistik-Service + Ausfalltests
 
+> Prüfstatus: Die unten erwähnten HA-Messungen und Fehlerprotokolle sind auf diesem Branch nicht belegt. Sie gelten als geplante Szenarien, bis eigene VM-Tests dokumentiert sind. Aktuelle Deployment-Anleitung: [deployment-zachary.md](deployment-zachary.md).
+
 > **TL;DR:** Dein Service rechnet: wie viele TODOs offen, in Bearbeitung und erledigt sind (F07) und wie lange das Erledigen im Schnitt dauert (F08).
 > Er hat **keine eigene Datenbank**. Bei jeder Anfrage holt er die TODOs bei Dexters Service und die Kategorienamen bei Naimas Service.
 > Die Rechnung ist als **reine Funktionen** gebaut und mit Unit-Tests abgesichert. Mit Naima bist du für die **Ausfalltests** zuständig.

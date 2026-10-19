@@ -62,3 +62,21 @@ test('erledigt in den letzten 7 Tagen', () => {
   );
   assert.strictEqual(s.completedLast7Days, 1);
 });
+
+test('letzte sieben Tage schliessen zukuenftige Werte aus und die Grenze ein', () => {
+  const now = new Date('2026-10-20T12:00:00Z');
+  const result = computeStats([
+    todo('done', '2026-10-01T00:00:00Z', '2026-10-13T12:00:00Z'),
+    todo('done', '2026-10-01T00:00:00Z', '2026-10-13T11:59:59Z'),
+    todo('done', '2026-10-01T00:00:00Z', '2026-10-20T12:00:01Z'),
+  ], [], now);
+  assert.strictEqual(result.completedLast7Days, 1);
+});
+
+test('ungueltige und negative Erledigungsdauern verfaelschen den Durchschnitt nicht', () => {
+  assert.strictEqual(averageCompletionSeconds([
+    todo('done', 'ungueltig', '2026-10-20T12:00:00Z'),
+    todo('done', '2026-10-20T13:00:00Z', '2026-10-20T12:00:00Z'),
+    todo('done', '2026-10-20T11:00:00Z', '2026-10-20T12:00:00Z'),
+  ]), 3600);
+});

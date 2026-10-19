@@ -6,7 +6,7 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "test": "node --test test/"
+    "test": "node --test test/stats.test.js test/http.test.js"
   },
   "engines": { "node": ">=22" },
   "dependencies": { "express": "^5.1.0", "jsonwebtoken": "^9.0.2" }

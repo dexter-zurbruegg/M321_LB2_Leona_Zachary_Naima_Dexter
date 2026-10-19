@@ -11,6 +11,9 @@ function requireAuth(req, res, next) {
   if (!match) return next(new HttpError(401, 'UNAUTHORIZED', 'Bitte zuerst anmelden'));
   try {
     const payload = jwt.verify(match[1], SECRET, { algorithms: ['HS256'], issuer: 'user-service' });
+    if (typeof payload.sub !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(payload.sub) || !Number.isFinite(payload.exp)) {
+      throw new Error('Benutzer-ID oder Ablaufzeit fehlt');
+    }
     req.user = { id: payload.sub, email: payload.email };
     req.token = match[1];
     next();
