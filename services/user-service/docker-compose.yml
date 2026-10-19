@@ -10,7 +10,7 @@ services:
     restart: always
     ports: ["8081:3000"]
     environment:
-      DATABASE_URL: postgres://app:${POSTGRES_PASSWORD:?}@db:5432/users
+      DATABASE_URL: postgres://app:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD fehlt (.env nach ~/m321/.env kopieren)}@db:5432/users
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET fehlt}
       TODO_SERVICE_URL: ${TODO_SERVICE_URL:-http://host.docker.internal:8082}
       CATEGORY_SERVICE_URL: ${CATEGORY_SERVICE_URL:-http://host.docker.internal:8083}
@@ -23,7 +23,7 @@ services:
     restart: always
     environment:
       POSTGRES_USER: app
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD fehlt (.env nach ~/m321/.env kopieren)}
       POSTGRES_DB: users
     volumes: [db-data:/var/lib/postgresql/data]
     healthcheck:
