@@ -1,16 +1,20 @@
 // Benutzer-Service (Leona): Registrierung, Login (JWT), Profil ändern, Konto löschen.
+const crypto = require('node:crypto');
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { pool } = require('./db');
 const { requireAuth, SECRET } = require('./auth');
 const { callService } = require('./client');
-const { HttpError, requestContext, notFound, errorHandler } = require('./http');
+const { HttpError, requestContext, notFound, errorHandler, log } = require('./http');
 const health = require('./health');
 
 const TOKEN_TTL_SECONDS = Number(process.env.JWT_TTL_SECONDS || 3600);
 const TODO_URL = process.env.TODO_SERVICE_URL || 'http://todo-service:3000';
 const CATEGORY_URL = process.env.CATEGORY_SERVICE_URL || 'http://category-service:3000';
+
+// Hash eines Zufallspassworts: wird bei unbekannter E-Mail verglichen, damit die Antwortzeit gleich bleibt.
+const DUMMY_HASH = bcrypt.hashSync(crypto.randomUUID(), 10);
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -25,8 +29,12 @@ function validateEmail(email) {
   return email.trim().toLowerCase();
 }
 function validatePassword(password) {
-  if (typeof password !== 'string' || password.length < 8 || password.length > 100) {
+  if (typeof password !== 'string' || password.length < 8) {
     throw new HttpError(400, 'VALIDATION_ERROR', 'Das Passwort muss mindestens 8 Zeichen lang sein');
+  }
+  // bcrypt verwendet nur die ersten 72 Bytes. Längere Passwörter würden still abgeschnitten.
+  if (Buffer.byteLength(password) > 72) {
+    throw new HttpError(400, 'VALIDATION_ERROR', 'Das Passwort darf höchstens 72 Bytes lang sein (ca. 70 Zeichen)');
   }
   return password;
 }
@@ -41,6 +49,16 @@ async function findMe(req) {
   const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
   if (!rows[0]) throw new HttpError(404, 'USER_NOT_FOUND', 'Dieses Konto existiert nicht mehr');
   return rows[0];
+}
+
+// Ruft DELETE bei einem anderen Service auf. callService liefert auch 4xx-Antworten zurück (z. B. 401 bei
+// falschem JWT_SECRET). Nur 2xx zählt als gelöscht. Sonst bliebe das Konto weg und die Daten verwaist.
+async function deleteAll(name, url, opts) {
+  const res = await callService(name, url, opts);
+  if (!res.ok) {
+    log({ level: 'error', requestId: opts.requestId, message: `${name} hat das Löschen abgelehnt (Status ${res.status})` });
+    throw new HttpError(503, 'DEPENDENCY_UNAVAILABLE', `${name} hat das Löschen nicht bestätigt, das Konto wurde nicht gelöscht. Bitte später erneut versuchen`);
+  }
 }
 
 const app = express();
@@ -73,7 +91,8 @@ app.post('/auth/login', async (req, res) => {
   const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
   const user = rows[0];
   // Gleiche Meldung für "E-Mail unbekannt" und "Passwort falsch": verrät nicht, welche Konten existieren.
-  if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+  const passwordOk = await bcrypt.compare(password, user ? user.password_hash : DUMMY_HASH);
+  if (!user || !passwordOk) {
     throw new HttpError(401, 'INVALID_CREDENTIALS', 'E-Mail oder Passwort ist falsch');
   }
   const token = jwt.sign({ sub: user.id, email: user.email }, SECRET, {
@@ -81,7 +100,7 @@ app.post('/auth/login', async (req, res) => {
     expiresIn: TOKEN_TTL_SECONDS,
     issuer: 'user-service',
   });
-  const expiresAt = new Date(Date.now() + TOKEN_TTL_SECONDS * 1000).toISOString();
+  const expiresAt = new Date(jwt.decode(token).exp * 1000).toISOString();
   res.json({ token, expiresAt, user: toJson(user) });
 });
 
@@ -122,8 +141,8 @@ app.patch('/users/me', requireAuth, async (req, res) => {
 app.delete('/users/me', requireAuth, async (req, res) => {
   await findMe(req);
   const opts = { method: 'DELETE', token: req.token, requestId: req.id };
-  await callService('Der TODO-Service', `${TODO_URL}/todos`, opts);
-  await callService('Der Kategorien-Service', `${CATEGORY_URL}/categories`, opts);
+  await deleteAll('Der TODO-Service', `${TODO_URL}/todos`, opts);
+  await deleteAll('Der Kategorien-Service', `${CATEGORY_URL}/categories`, opts);
   await pool.query('DELETE FROM users WHERE id = $1', [req.user.id]);
   res.status(204).end();
 });
