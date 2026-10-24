@@ -19,6 +19,15 @@ else:
 lines=[x for x in lines if not x.startswith('--watch-cache=')]
 lines.append('--watch-cache=false')
 p.write_text('\n'.join(lines)+'\n')
+root=p.parent
+for name in ['kube-controller-manager', 'kube-scheduler']:
+    p=root/name
+    b=p.with_name(name+'.before-m321-ha-20261024')
+    if not b.exists(): shutil.copy2(p,b)
+    s=p.read_text().replace('--leader-elect-lease-duration=60s','--leader-elect-lease-duration=15s').replace('--leader-elect-renew-deadline=30s','--leader-elect-renew-deadline=10s')
+    if name=='kube-controller-manager' and '--node-monitor-grace-period=' not in s:
+        s+='--node-monitor-grace-period=20s\n'
+    p.write_text(s)
 PY
 sudo -n systemctl restart snap.microk8s.daemon-kubelite
 for attempt in $(seq 1 20); do
