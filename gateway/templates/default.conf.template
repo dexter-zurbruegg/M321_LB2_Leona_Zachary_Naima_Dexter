@@ -7,6 +7,15 @@
 
 resolver ${NGINX_LOCAL_RESOLVERS} valid=5s ipv6=off;
 
+# Nur die vier Team-Gateways dürfen die API einer anderen VM im Browser nutzen.
+map $http_origin $cors_origin {
+    default "";
+    "http://10.4.31.11:30080" $http_origin;
+    "http://10.4.31.13:30080" $http_origin;
+    "http://10.4.31.16:30080" $http_origin;
+    "http://10.4.31.17:30080" $http_origin;
+}
+
 # Pro Service zwei Instanzen (_1 und _2). In Kubernetes zeigen beide auf denselben Service-Namen,
 # dort verteilt Kubernetes selbst auf die Pods.
 upstream user_service {
@@ -49,6 +58,11 @@ server {
     proxy_set_header Host $host;
     proxy_hide_header X-Request-Id; # die Services senden sie auch, so steht sie nur einmal in der Antwort
     add_header X-Request-Id $request_id always;
+    add_header Access-Control-Allow-Origin $cors_origin always;
+    add_header Access-Control-Allow-Headers "Authorization, Content-Type, X-Request-Id" always;
+    add_header Access-Control-Allow-Methods "GET, POST, PATCH, DELETE, OPTIONS" always;
+    add_header Vary Origin always;
+    if ($request_method = OPTIONS) { return 204; }
 
     location /api/auth/       { rewrite ^/api(/.*)$ $1 break; proxy_pass http://user_service; }
     location /api/users       { rewrite ^/api(/.*)$ $1 break; proxy_pass http://user_service; }
