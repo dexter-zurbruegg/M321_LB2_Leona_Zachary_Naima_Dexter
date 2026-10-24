@@ -8,6 +8,12 @@ cd "$(dirname "$0")/.."
 KUBECTL=${KUBECTL:-microk8s kubectl}
 CTR=${CTR:-microk8s ctr}
 
+# Das alte Einzel-Datenbank-Deployment darf den eingerichteten HA-Cluster nicht ersetzen.
+if $KUBECTL get cluster.postgresql.cnpg.io todo-pg -n todo-app >/dev/null 2>&1; then
+  echo "HA-Cluster todo-pg vorhanden: deploy/ha verwenden; dieses Skript ist nur fuer die lokale Variante." >&2
+  exit 1
+fi
+
 [ -f .env ] || ./scripts/init-env.sh
 
 echo "== Images bauen"

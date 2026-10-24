@@ -3,18 +3,62 @@
 # Läuft auf der VM, auf der "docker compose up" gestartet wurde:
 #   ./scripts/ha-test.sh                     (BASE_URL bei Bedarf setzen, Standard http://localhost:8080)
 # Gibt am Ende eine Markdown-Tabelle aus, die direkt ins Testprotokoll (docs/testprotokoll.md) passt.
-set -uo pipefail
+set -euo pipefail
 
 BASE_URL=${BASE_URL:-http://localhost:8080}
 RESULTS=()
+STOPPED=()
+FAILED=0
+TOKEN=''
+# Jeder Netzwerkaufruf und jede Wiederherstellung hat ein Zeitlimit.
+curl() { command curl --connect-timeout 2 --max-time 12 "$@"; }
+cleanup() {
+  local rc=$?
+  trap - EXIT INT TERM
+  if [ "${#STOPPED[@]}" -gt 0 ]; then
+    docker start "${STOPPED[@]}" >/dev/null || rc=1
+  fi
+  if [ -n "$TOKEN" ]; then
+    # Nur das in diesem Lauf erzeugte Testkonto und dessen Daten entfernen.
+    if ! wait_ok categories || ! wait_ok todos; then
+      echo 'Testkonto konnte wegen fehlender Dienste nicht bereinigt werden.' >&2
+      rc=1
+    else
+      code=$(status -X DELETE "$BASE_URL/api/users/me") || code=000
+      [ "$code" = 204 ] || { echo "Testkonto-Bereinigung: HTTP $code" >&2; rc=1; }
+    fi
+  fi
+  printf '\n| Test | Vorgehen | Ergebnis | Status |\n|---|---|---|---|\n'
+  [ "${#RESULTS[@]}" -eq 0 ] || printf '%s\n' "${RESULTS[@]}"
+  [ "$FAILED" -eq 0 ] || rc=1
+  exit "$rc"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+stop_for_test() { STOPPED+=("$@"); docker stop "$@" >/dev/null; }
+# Auf einer Einzelservice-Installation nicht versehentlich andere Container stoppen.
+for target in todo-service-1 todo-service-2 category-service-1 category-service-2 db; do
+  [ "$(docker inspect -f '{{.State.Running}}' "$target")" = true ] || { echo "$target läuft nicht; Abbruch vor dem Test." >&2; exit 1; }
+  [ "$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' "$target")" = todo-app ] || { echo "Unerwartetes Compose-Projekt: $target" >&2; exit 1; }
+done
 
 c() { echo "$1"; }                                  # Containername, z. B. todo-service-1
 say() { printf '\n\033[1m== %s\033[0m\n' "$*"; }
-record() { RESULTS+=("| $1 | $2 | $3 | $4 |"); printf '   -> %s: %s\n' "$4" "$3"; }
+record() { RESULTS+=("| $1 | $2 | $3 | $4 |"); printf '   -> %s: %s\n' "$4" "$3"; if [ "$4" != OK ]; then FAILED=1; fi; }
 status() { curl -s -o /dev/null -w '%{http_code}' -H "authorization: Bearer $TOKEN" "$@"; }
 now_ms() { date +%s%3N; }
 # nach einem "docker start" warten, bis der Service über den Proxy wieder antwortet
-wait_ok() { until [ "$(status "$BASE_URL/api/$1")" = 200 ]; do sleep 0.5; done; }
+wait_ok() {
+  local deadline=$((SECONDS+60)) code
+  while (( SECONDS < deadline )); do
+    code=$(status "$BASE_URL/api/$1") || code=000
+    [ "$code" != 200 ] || return 0
+    sleep 0.5
+  done
+  echo "Timeout beim Warten auf $1" >&2
+  return 1
+}
 
 # Testbenutzer anlegen (ohne jq: Token mit sed aus der JSON-Antwort holen)
 EMAIL="ha-$(date +%s)@example.com"
@@ -37,7 +81,7 @@ record HA-01 "20x GET /api/todos" "Antworten verteilt auf $n Instanzen ($instanc
 
 # ---------------------------------------------------------------------------------------------
 say "HA-02 Eine Instanz fällt aus: todo-service-1 stoppen, 20 Anfragen müssen trotzdem klappen"
-docker stop "$(c todo-service-1)" >/dev/null
+stop_for_test "$(c todo-service-1)"
 ok=0; for i in $(seq 20); do [ "$(status "$BASE_URL/api/todos")" = 200 ] && ok=$((ok+1)); done
 code=$(curl -s -o /dev/null -w '%{http_code}' -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' \
   -d '{"title":"während Ausfall erstellt"}' "$BASE_URL/api/todos")
@@ -49,15 +93,20 @@ say "HA-03 Absturz: Node-Prozess in category-service-2 mit kill -9 beenden, Zeit
 target=$(c category-service-2)
 before=$(docker inspect -f '{{.RestartCount}}' "$target")
 start=$(now_ms)
-docker exec "$target" sh -c 'kill -9 $(pgrep -f "node src/server.js")'
-until docker exec "$target" wget -qO- http://127.0.0.1:3000/health >/dev/null 2>&1; do sleep 0.2; done
+STOPPED+=("$target")
+docker exec "$target" sh -c 'kill -9 $(pgrep -f "node src/server.js")' || true
+deadline=$((SECONDS+60))
+until [ "$(docker inspect -f '{{.RestartCount}}' "$target")" -gt "$before" ] && docker exec "$target" wget -qO- http://127.0.0.1:3000/health >/dev/null 2>&1; do
+  (( SECONDS < deadline )) || { echo "Timeout: $target startet nicht neu" >&2; exit 1; }
+  sleep 0.2
+done
 ms=$(( $(now_ms) - start ))
 after=$(docker inspect -f '{{.RestartCount}}' "$target")
 record HA-03 "kill -9 auf Node-Prozess" "Docker hat neu gestartet (RestartCount $before -> $after), wieder gesund nach $((ms/1000)).$(( (ms%1000)/100 )) s" "$([ "$after" -gt "$before" ] && echo OK || echo FEHLER)"
 
 # ---------------------------------------------------------------------------------------------
 say "HA-04 Kategorien-Service komplett weg (beide Instanzen): TODOs + Statistik laufen weiter"
-docker stop "$(c category-service-1)" "$(c category-service-2)" >/dev/null
+stop_for_test "$(c category-service-1)" "$(c category-service-2)"
 list=$(status "$BASE_URL/api/todos")
 body=$(curl -s -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' \
   -d "{\"title\":\"mit Kategorie\",\"categoryId\":\"$CAT_ID\"}" -w ' %{http_code}' "$BASE_URL/api/todos")
@@ -70,7 +119,7 @@ record HA-04 "beide category-service gestoppt" "GET /todos -> $list; POST mit Ka
 
 # ---------------------------------------------------------------------------------------------
 say "HA-05 TODO-Service komplett weg: Statistik meldet verständlichen Fehler statt zu hängen"
-docker stop "$(c todo-service-1)" "$(c todo-service-2)" >/dev/null
+stop_for_test "$(c todo-service-1)" "$(c todo-service-2)"
 start=$(now_ms)
 body=$(curl -s -H "authorization: Bearer $TOKEN" -w ' %{http_code}' "$BASE_URL/api/stats")
 ms=$(( $(now_ms) - start ))
@@ -82,9 +131,10 @@ record HA-05 "beide todo-service gestoppt, GET /stats" "${body##* } nach ${ms} m
 # ---------------------------------------------------------------------------------------------
 say "HA-06 Datenbank-Neustart (N04): Daten bleiben erhalten, Services verbinden sich neu"
 count_before=$(curl -s -H "authorization: Bearer $TOKEN" "$BASE_URL/api/todos" | grep -o '"id"' | wc -l)
+STOPPED+=("$(c db)")
 docker restart "$(c db)" >/dev/null
 start=$(now_ms)
-until [ "$(status "$BASE_URL/api/todos")" = 200 ]; do sleep 0.5; done
+wait_ok todos
 ms=$(( $(now_ms) - start ))
 count_after=$(curl -s -H "authorization: Bearer $TOKEN" "$BASE_URL/api/todos" | grep -o '"id"' | wc -l)
 record HA-06 "docker restart db" "$count_before TODOs vorher, $count_after nachher; API wieder bereit nach $((ms/1000)) s" \
@@ -93,7 +143,4 @@ record HA-06 "docker restart db" "$count_before TODOs vorher, $count_after nachh
 # warten, bis alles wieder gesund ist
 sleep 12
 
-echo
-echo "| Test | Vorgehen | Ergebnis | Status |"
-echo "|---|---|---|---|"
-printf '%s\n' "${RESULTS[@]}"
+# EXIT-Trap stellt Dienste wieder her, bereinigt Testdaten und gibt die Tabelle aus.
