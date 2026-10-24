@@ -1,0 +1,99 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: m321-local
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Retain
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: m321-postgres-11
+spec:
+  capacity:
+    storage: 2Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: m321-local
+  local:
+    path: /var/snap/microk8s/common/m321-postgres
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - m321-11-ap23a
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: m321-postgres-13
+spec:
+  capacity:
+    storage: 2Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: m321-local
+  local:
+    path: /var/snap/microk8s/common/m321-postgres
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - m321-13-ap23a
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: m321-postgres-16
+spec:
+  capacity:
+    storage: 2Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: m321-local
+  local:
+    path: /var/snap/microk8s/common/m321-postgres
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - m321-16-ap23a
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: m321-postgres-17
+spec:
+  capacity:
+    storage: 2Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: m321-local
+  local:
+    path: /var/snap/microk8s/common/m321-postgres
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - m321-17-ap23a
