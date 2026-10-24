@@ -1,6 +1,19 @@
 // Gemeinsamer API-Client: alle Aufrufe gehen über den Reverse Proxy (/api/...), nie direkt an die Services.
 // Hängt das JWT an, übersetzt Fehler in verständliche Meldungen (F10) und meldet bei 401 ab (F02).
 const TOKEN_KEY = 'todo-app-token';
+const origins = [...new Set([location.origin, ...(window.TODO_API_ORIGINS || [])])];
+let activeOrigin = location.origin;
+
+async function reachableOrigin() {
+  if (origins.length === 1) return activeOrigin;
+  for (const origin of [activeOrigin, ...origins.filter(x => x !== activeOrigin)]) {
+    try {
+      const health = await fetch(`${origin}/health`, { signal: AbortSignal.timeout(1500), cache: 'no-store' });
+      if (health.ok) { activeOrigin = origin; return origin; }
+    } catch { /* nächste VM prüfen */ }
+  }
+  throw new Error('Kein Gateway erreichbar');
+}
 
 export const session = {
   get token() { return localStorage.getItem(TOKEN_KEY); },
@@ -21,14 +34,16 @@ export async function api(path, { method = 'GET', body } = {}) {
   if (session.token) headers.authorization = `Bearer ${session.token}`;
   let res;
   try {
-    res = await fetch(`/api${path}`, {
+    const origin = await reachableOrigin();
+    res = await fetch(`${origin}/api${path}`, {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: AbortSignal.timeout(10000),
     });
   } catch {
-    throw new ApiError(0, 'NETWORK', 'Server nicht erreichbar. Bitte Verbindung prüfen und erneut versuchen.');
+    // Schreibzugriffe nicht blind wiederholen: Die erste Anfrage könnte schon gespeichert worden sein.
+    throw new ApiError(0, 'NETWORK', 'Verbindung unterbrochen. Bitte neu laden und den gespeicherten Stand prüfen; danach erneut versuchen.');
   }
   if (res.status === 204) return null;
   const data = await res.json().catch(() => null);
