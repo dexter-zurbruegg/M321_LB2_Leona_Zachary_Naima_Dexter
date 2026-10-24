@@ -7,6 +7,8 @@ import datetime, json, os, select, socket, subprocess, sys, time
 NODE=socket.gethostname().lower()
 NAME='m321-watch-health-'+NODE
 K=['/snap/bin/microk8s','kubectl','--request-timeout=12s']
+PEERS=['10.0.31.82','10.0.31.84','10.0.31.87','10.0.31.88']
+LOCK_API=None
 def run(args, obj=None, timeout=18):
  return subprocess.run(K+args,input=json.dumps(obj) if obj else None,text=True,capture_output=True,timeout=timeout)
 def utc(): return datetime.datetime.now(datetime.timezone.utc)
@@ -33,19 +35,39 @@ def probe():
   return False
  finally:
   p.kill();p.wait()
-def lock():
- r=run(['get','lease','m321-watch-recovery','-n','kube-system','-o','json'])
+def lease_run(args, obj=None):
+ return subprocess.run(K+['--request-timeout=3s','--server=https://'+LOCK_API+':16443']+args,input=json.dumps(obj) if obj else None,text=True,capture_output=True,timeout=5)
+
+def lock_on_peer():
+ r=lease_run(['get','lease','m321-watch-recovery','-n','kube-system','-o','json'])
  if r.returncode:
-  obj={'apiVersion':'coordination.k8s.io/v1','kind':'Lease','metadata':{'name':'m321-watch-recovery','namespace':'kube-system'},'spec':{}}
-  action='create'
+  return False
  else:obj=json.loads(r.stdout);action='replace'
  spec=obj.get('spec',{}); last=spec.get('renewTime')
  if last and spec.get('holderIdentity') and (utc()-datetime.datetime.fromisoformat(last.replace('Z','+00:00'))).total_seconds()<90:return False
  obj['spec']={'holderIdentity':NODE,'leaseDurationSeconds':90,'renewTime':stamp()}
- return run([action,'-f','-'],obj).returncode==0
+ return lease_run([action,'-f','-'],obj).returncode==0
+
+def lock():
+ global LOCK_API
+ # A locally stalled API cannot grant its own repair lease. Use a healthy
+ # peer with the same cluster CA and credentials; CAS still serializes repairs.
+ for peer in PEERS:
+  LOCK_API=peer
+  try:
+   if lock_on_peer():return True
+  except subprocess.TimeoutExpired:pass
+ return False
+
+def ensure_lease():
+ r=run(['get','lease','m321-watch-recovery','-n','kube-system','-o','json'])
+ if r.returncode:
+  obj={'apiVersion':'coordination.k8s.io/v1','kind':'Lease','metadata':{'name':'m321-watch-recovery','namespace':'kube-system'},'spec':{}}
+  run(['create','-f','-'],obj)
 
 def main():
  if probe():
+  if '--check' not in sys.argv:ensure_lease()
   if '--check' in sys.argv:print(NODE+': watch healthy')
   return
  print(NODE+': watch did not deliver a new event',flush=True)
@@ -61,11 +83,11 @@ def main():
  if not probe():raise RuntimeError('Watch still unhealthy after dqlite restart')
  print(NODE+': watch recovered',flush=True)
  # Release only after this node is healthy, allowing the next node to repair.
- r=run(['get','lease','m321-watch-recovery','-n','kube-system','-o','json'])
+ r=lease_run(['get','lease','m321-watch-recovery','-n','kube-system','-o','json'])
  if r.returncode==0:
   obj=json.loads(r.stdout)
   if obj.get('spec',{}).get('holderIdentity')==NODE:
-   obj['spec']['holderIdentity']='';run(['replace','-f','-'],obj)
+   obj['spec']['holderIdentity']='';lease_run(['replace','-f','-'],obj)
 if __name__=='__main__':
  try:main()
  except (subprocess.TimeoutExpired, ValueError, RuntimeError) as exc:
