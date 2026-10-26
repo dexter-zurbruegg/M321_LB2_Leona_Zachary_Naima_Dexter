@@ -1,0 +1,587 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: todo-app
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: todo-app-config
+  namespace: todo-app
+data:
+  TODO_SERVICE_URL: http://todo-service:3000
+  CATEGORY_SERVICE_URL: http://category-service:3000
+  JWT_TTL_SECONDS: "3600"
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: user-service
+  namespace: todo-app
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: user-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: todo-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  app: user-service
+      containers:
+        - name: user-service
+          image: todo-app/user-service:ha-20261024
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          env:
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: todo-app-secrets
+                  key: JWT_SECRET
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: todo-app-secrets
+                  key: USER_DB_PASSWORD
+            - name: DATABASE_URL
+              value: postgres://user_svc:$(DB_PASSWORD)@todo-pg-rw:5432/users
+            - name: JWT_TTL_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: todo-app-config
+                  key: JWT_TTL_SECONDS
+            - name: TODO_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: todo-app-config
+                  key: TODO_SERVICE_URL
+            - name: CATEGORY_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: todo-app-config
+                  key: CATEGORY_SERVICE_URL
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - sleep
+                  - "3"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            periodSeconds: 5
+            failureThreshold: 2
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              memory: 192Mi
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: 3000
+            periodSeconds: 5
+            failureThreshold: 36
+      tolerations:
+        - key: node.kubernetes.io/not-ready
+          operator: Exists
+          effect: NoExecute
+          tolerationSeconds: 30
+        - key: node.kubernetes.io/unreachable
+          operator: Exists
+          effect: NoExecute
+          tolerationSeconds: 30
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: todo-app
+spec:
+  selector:
+    app: user-service
+  ports:
+    - port: 3000
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: todo-service
+  namespace: todo-app
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: todo-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: todo-service
+  namespace: todo-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: todo-service
+  template:
+    metadata:
+      labels:
+        app: todo-service
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  app: todo-service
+      containers:
+        - name: todo-service
+          image: todo-app/todo-service:ha-20261024
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          env:
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: todo-app-secrets
+                  key: JWT_SECRET
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: todo-app-secrets
+                  key: TODO_DB_PASSWORD
+            - name: DATABASE_URL
+              value: postgres://todo_svc:$(DB_PASSWORD)@todo-pg-rw:5432/todos
+            - name: CATEGORY_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: todo-app-config
+                  key: CATEGORY_SERVICE_URL
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - sleep
+                  - "3"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            periodSeconds: 5
+            failureThreshold: 2
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              memory: 192Mi
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: 3000
+            periodSeconds: 5
+            failureThreshold: 36
+      tolerations:
+        - key: node.kubernetes.io/not-ready
+          operator: Exists
+          effect: NoExecute
+          tolerationSeconds: 30
+        - key: node.kubernetes.io/unreachable
+          operator: Exists
+          effect: NoExecute
+          tolerationSeconds: 30
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: todo-service
+  namespace: todo-app
+spec:
+  selector:
+    app: todo-service
+  ports:
+    - port: 3000
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: category-service
+  namespace: todo-app
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: category-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: category-service
+  namespace: todo-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: category-service
+  template:
+    metadata:
+      labels:
+        app: category-service
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  app: category-service
+      containers:
+        - name: category-service
+          image: todo-app/category-service:ha-20261024
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          env:
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: todo-app-secrets
+                  key: JWT_SECRET
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: todo-app-secrets
+                  key: CATEGORY_DB_PASSWORD
+            - name: DATABASE_URL
+              value: postgres://category_svc:$(DB_PASSWORD)@todo-pg-rw:5432/categories
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - sleep
+                  - "3"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            periodSeconds: 5
+            failureThreshold: 2
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              memory: 192Mi
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: 3000
+            periodSeconds: 5
+            failureThreshold: 36
+      tolerations:
+        - key: node.kubernetes.io/not-ready
+          operator: Exists
+          effect: NoExecute
+          tolerationSeconds: 30
+        - key: node.kubernetes.io/unreachable
+          operator: Exists
+          effect: NoExecute
+          tolerationSeconds: 30
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: category-service
+  namespace: todo-app
+spec:
+  selector:
+    app: category-service
+  ports:
+    - port: 3000
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: stats-service
+  namespace: todo-app
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: stats-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stats-service
+  namespace: todo-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: stats-service
+  template:
+    metadata:
+      labels:
+        app: stats-service
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  app: stats-service
+      containers:
+        - name: stats-service
+          image: todo-app/stats-service:ha-20261024
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          env:
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: todo-app-secrets
+                  key: JWT_SECRET
+            - name: TODO_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: todo-app-config
+                  key: TODO_SERVICE_URL
+            - name: CATEGORY_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: todo-app-config
+                  key: CATEGORY_SERVICE_URL
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - sleep
+                  - "3"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            periodSeconds: 5
+            failureThreshold: 2
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              memory: 192Mi
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: 3000
+            periodSeconds: 5
+            failureThreshold: 36
+      tolerations:
+        - key: node.kubernetes.io/not-ready
+          operator: Exists
+          effect: NoExecute
+          tolerationSeconds: 30
+        - key: node.kubernetes.io/unreachable
+          operator: Exists
+          effect: NoExecute
+          tolerationSeconds: 30
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stats-service
+  namespace: todo-app
+spec:
+  selector:
+    app: stats-service
+  ports:
+    - port: 3000
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: gateway
+  namespace: todo-app
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: gateway
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: todo-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: gateway
+  template:
+    metadata:
+      labels:
+        app: gateway
+    spec:
+      containers:
+        - name: gateway
+          image: todo-app/gateway:ha-20261024
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: USER_UPSTREAM_1
+              value: user-service.todo-app.svc.cluster.local:3000
+            - name: USER_UPSTREAM_2
+              value: user-service.todo-app.svc.cluster.local:3000
+            - name: TODO_UPSTREAM_1
+              value: todo-service.todo-app.svc.cluster.local:3000
+            - name: TODO_UPSTREAM_2
+              value: todo-service.todo-app.svc.cluster.local:3000
+            - name: CATEGORY_UPSTREAM_1
+              value: category-service.todo-app.svc.cluster.local:3000
+            - name: CATEGORY_UPSTREAM_2
+              value: category-service.todo-app.svc.cluster.local:3000
+            - name: STATS_UPSTREAM_1
+              value: stats-service.todo-app.svc.cluster.local:3000
+            - name: STATS_UPSTREAM_2
+              value: stats-service.todo-app.svc.cluster.local:3000
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+          volumeMounts:
+            - name: runtime-config
+              mountPath: /usr/share/nginx/html/runtime-config.js
+              subPath: runtime-config.js
+              readOnly: true
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  app: gateway
+      tolerations:
+        - key: node.kubernetes.io/not-ready
+          operator: Exists
+          effect: NoExecute
+          tolerationSeconds: 30
+        - key: node.kubernetes.io/unreachable
+          operator: Exists
+          effect: NoExecute
+          tolerationSeconds: 30
+      volumes:
+        - name: runtime-config
+          configMap:
+            name: todo-runtime-config
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+  namespace: todo-app
+spec:
+  type: NodePort
+  selector:
+    app: gateway
+  ports:
+    - port: 8080
+      nodePort: 30080
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: todo-runtime-config
+  namespace: todo-app
+data:
+  runtime-config.js: |
+    window.TODO_API_ORIGINS = ["http://10.4.31.11:30080","http://10.4.31.13:30080","http://10.4.31.16:30080","http://10.4.31.17:30080"];

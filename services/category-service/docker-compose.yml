@@ -1,0 +1,32 @@
+# category-service EINZELN starten (N01), z. B. auf der eigenen LernMAAS-VM:
+#   docker compose --env-file ../../.env up -d --build   ->  http://<vm-ip>:8083/health
+# Bringt seine eigene Datenbank mit. Andere Services werden über *_SERVICE_URL gefunden
+# (Standard: dieselbe VM über die Host-Ports, sonst IP der anderen VM eintragen).
+name: category-service
+services:
+  category-service:
+    build: .
+    image: todo-app/category-service:1.0
+    restart: always
+    ports: ["8083:3000"]
+    environment:
+      DATABASE_URL: postgres://app:${POSTGRES_PASSWORD:?}@db:5432/categories
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET fehlt}
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
+    image: postgres:17-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: categories
+    volumes: [db-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "app"]
+      interval: 5s
+      retries: 10
+volumes:
+  db-data:

@@ -1,0 +1,43 @@
+✔ TC-K01 Kategorie erstellen, lesen, auflisten (854.6913ms)
+✔ TC-K02 Standardfarbe und Validierung (Name leer, Farbe ungültig) -> 400 (459.9938ms)
+✔ TC-K03 gleicher Name (auch andere Gross-/Kleinschreibung) -> 409, nach Löschen wieder erlaubt (483.3135ms)
+✔ TC-K04 umbenennen und Farbe ändern (433.747ms)
+✔ TC-K05 Löschen ist Soft-Delete: weg aus Liste und Prüf-Endpunkt, aber mit includeDeleted sichtbar (616.1885ms)
+✔ TC-K06 fremde Kategorien: lesen, ändern, löschen -> 404 (N02) (1097.6917ms)
+✔ TC-K07 ohne Anmeldung -> 401, ungültige ID -> 404 (625.9023ms)
+✔ TC-E01 Registrieren -> Login -> Kategorie -> TODO -> erledigen -> Statistik -> Abmelden (844.8299ms)
+✔ TC-E02 Frontend wird ausgeliefert, unbekannte API-Route -> JSON 404 (50.5007ms)
+✔ TC-E03 Korrelations-ID: jede Antwort hat X-Request-Id und X-Instance (35.8706ms)
+✔ TC-S01 neuer Benutzer: alles 0, Durchschnitt null ("Keine Daten") (680.7307ms)
+✔ TC-S02 Zahlen stimmen mit Testdaten überein (F07) (587.8309ms)
+✔ TC-S03 Durchschnitt misst Erstellung bis Erledigung (F08) (2714.5314ms)
+✔ TC-S04 Auswertung pro Kategorie mit Namen (549.2427ms)
+✔ TC-S05 nur eigene Daten (N02) und ohne Anmeldung 401 (951.1016ms)
+✔ TC-T01 TODO erstellen mit Standardwerten (557.4311ms)
+✔ TC-T02 Validierung: leerer Titel, falscher Status / Priorität -> 400 (516.8926ms)
+✔ TC-T03 bearbeiten, anzeigen, löschen (465.6573ms)
+✔ TC-T04 Status: erledigt setzt completedAt, wieder öffnen setzt es zurück (F04, Regel 5.3.4) (525.428ms)
+✔ TC-T05 Kategorie zuordnen und entfernen (F06) (498.8021ms)
+✔ TC-T06 fremde oder gelöschte Kategorie -> 422 CATEGORY_NOT_FOUND (952.5841ms)
+✔ TC-T07 TODO bleibt nach dem Löschen seiner Kategorie erhalten und bearbeitbar (Regel 5.3.2) (874.616ms)
+✔ TC-T08 Filter (Status, Priorität, Kategorie), Suche und Sortierung (792.1712ms)
+✔ TC-T09 fremde TODOs: lesen, ändern, löschen -> 404 (N02) (918.3839ms)
+✔ TC-T10 ohne Anmeldung -> 401 (73.979ms)
+✔ TC-U01 Registrieren liefert 201 ohne Passwort-Hash in der Antwort (363.7024ms)
+✔ TC-U02 doppelte E-Mail -> 409 EMAIL_TAKEN (625.22ms)
+✔ TC-U03 ungültige Eingaben -> 400 mit verständlicher Meldung (88.8417ms)
+✔ TC-U04 Login liefert ein JWT im vereinbarten Format (HS256, sub = userId) (475.8803ms)
+✔ TC-U05 falsches Passwort -> 401 INVALID_CREDENTIALS (537.3669ms)
+✔ TC-U06 geschützte Endpunkte ohne / mit manipuliertem Token -> 401 (454.9173ms)
+✔ TC-U07 Profil ändern (Anzeigename) ohne Passwort, E-Mail nur mit Passwort (657.4285ms)
+✔ TC-U08 Passwort ändern -> altes Passwort funktioniert nicht mehr (1339.8835ms)
+✔ TC-U09 Abmelden -> 204 (529.6716ms)
+✔ TC-U10 Konto löschen entfernt auch TODOs und Kategorien (Regel 5.3.3) (945.9772ms)
+ℹ tests 35
+ℹ suites 0
+ℹ pass 35
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6330.4456

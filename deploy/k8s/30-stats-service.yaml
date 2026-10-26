@@ -1,0 +1,62 @@
+# stats-service: 2 Replicas (HA-Massnahme 1). Der Kubernetes-Service verteilt die Anfragen auf alle BEREITEN Pods.
+# readinessProbe /health: Pod bekommt nur Traffic, wenn er und seine DB bereit sind.
+# livenessProbe /health/live: hängt der Prozess, startet Kubernetes den Container neu (HA-Massnahme 2).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stats-service
+  namespace: todo-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: stats-service }
+  template:
+    metadata:
+      labels: { app: stats-service }
+    spec:
+      affinity:
+        # bei mehreren Nodes (VMs) die beiden Replicas möglichst auf verschiedene Nodes verteilen
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels: { app: stats-service }
+      containers:
+        - name: stats-service
+          image: todo-app/stats-service:1.0
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 3000 }]
+          env:
+            - name: JWT_SECRET
+              valueFrom: { secretKeyRef: { name: todo-app-secrets, key: JWT_SECRET } }
+            - name: TODO_SERVICE_URL
+              valueFrom: { configMapKeyRef: { name: todo-app-config, key: TODO_SERVICE_URL } }
+            - name: CATEGORY_SERVICE_URL
+              valueFrom: { configMapKeyRef: { name: todo-app-config, key: CATEGORY_SERVICE_URL } }
+          lifecycle:
+            # Beim Beenden erst 3 s warten: so entfernt Kubernetes den Pod aus dem Service, bevor er keine
+            # Verbindungen mehr annimmt -> keine verlorenen Anfragen beim Löschen/Update eines Pods.
+            preStop:
+              exec: { command: [sleep, "3"] }
+          readinessProbe:
+            httpGet: { path: /health, port: 3000 }
+            periodSeconds: 5
+            failureThreshold: 2
+          livenessProbe:
+            httpGet: { path: /health/live, port: 3000 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 25m, memory: 64Mi }
+            limits: { memory: 192Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stats-service
+  namespace: todo-app
+spec:
+  selector: { app: stats-service }
+  ports: [{ port: 3000 }]

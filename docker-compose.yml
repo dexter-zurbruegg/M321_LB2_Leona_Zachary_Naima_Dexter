@@ -1,0 +1,123 @@
+# Gesamtsystem auf einem Docker-Host (z. B. eine LernMAAS-VM):
+#   ./scripts/init-env.sh && docker compose up -d --build   ->  http://<host>:8080
+#
+# HA-Massnahme 1: jeder Backend-Service läuft in 2 Instanzen (<service>-1 und -2). nginx kennt beide,
+#                 verteilt die Last und weicht bei Ausfall einer Instanz auf die andere aus.
+# HA-Massnahme 2: restart: always + Healthchecks -> abgestürzte Container startet Docker automatisch neu.
+#
+# Beide Instanzen haben zusätzlich den gemeinsamen Netzwerk-Namen (alias) <service>, z. B. "todo-service".
+# Den benutzen die Services untereinander; Docker verteilt die Aufrufe dann auf die laufenden Instanzen.
+name: todo-app
+
+x-backend: &backend
+  restart: always
+  depends_on:
+    db:
+      condition: service_healthy
+
+services:
+  db:
+    build: deploy/db
+    image: todo-app/db:1.0
+    container_name: db
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?.env fehlt, siehe README}
+      USER_DB_PASSWORD: ${USER_DB_PASSWORD}
+      TODO_DB_PASSWORD: ${TODO_DB_PASSWORD}
+      CATEGORY_DB_PASSWORD: ${CATEGORY_DB_PASSWORD}
+    volumes:
+      - db-data:/var/lib/postgresql/data # N04: Daten überleben Neustarts
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [backend]
+
+  # --- Benutzer-Service (Leona) ---
+  user-service-1: &user-service
+    <<: *backend
+    build: services/user-service
+    image: todo-app/user-service:1.0
+    container_name: user-service-1
+    environment:
+      DATABASE_URL: postgres://user_svc:${USER_DB_PASSWORD}@db:5432/users
+      JWT_SECRET: ${JWT_SECRET:?.env fehlt, siehe README}
+      JWT_TTL_SECONDS: ${JWT_TTL_SECONDS:-3600}
+      TODO_SERVICE_URL: http://todo-service:3000
+      CATEGORY_SERVICE_URL: http://category-service:3000
+    networks:
+      backend:
+        aliases: [user-service]
+  user-service-2:
+    <<: *user-service
+    container_name: user-service-2
+
+  # --- TODO-Service (Dexter) ---
+  todo-service-1: &todo-service
+    <<: *backend
+    build: services/todo-service
+    image: todo-app/todo-service:1.0
+    container_name: todo-service-1
+    environment:
+      DATABASE_URL: postgres://todo_svc:${TODO_DB_PASSWORD}@db:5432/todos
+      JWT_SECRET: ${JWT_SECRET}
+      CATEGORY_SERVICE_URL: http://category-service:3000
+    networks:
+      backend:
+        aliases: [todo-service]
+  todo-service-2:
+    <<: *todo-service
+    container_name: todo-service-2
+
+  # --- Kategorien-Service (Naima) ---
+  category-service-1: &category-service
+    <<: *backend
+    build: services/category-service
+    image: todo-app/category-service:1.0
+    container_name: category-service-1
+    environment:
+      DATABASE_URL: postgres://category_svc:${CATEGORY_DB_PASSWORD}@db:5432/categories
+      JWT_SECRET: ${JWT_SECRET}
+    networks:
+      backend:
+        aliases: [category-service]
+  category-service-2:
+    <<: *category-service
+    container_name: category-service-2
+
+  # --- Statistik-Service (Zachary), braucht keine Datenbank ---
+  stats-service-1: &stats-service
+    build: services/stats-service
+    image: todo-app/stats-service:1.0
+    container_name: stats-service-1
+    restart: always
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      TODO_SERVICE_URL: http://todo-service:3000
+      CATEGORY_SERVICE_URL: http://category-service:3000
+    networks:
+      backend:
+        aliases: [stats-service]
+  stats-service-2:
+    <<: *stats-service
+    container_name: stats-service-2
+
+  # --- Reverse Proxy + Frontend (Dexter + Leona) ---
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    image: todo-app/gateway:1.0
+    container_name: gateway
+    restart: always
+    ports:
+      - "${GATEWAY_PORT:-8080}:8080"
+    networks: [backend]
+
+networks:
+  backend:
+
+volumes:
+  db-data:

@@ -1,0 +1,318 @@
+Naima – Testnachweise vom 24.10.2026
+Nur eigene Testkonten; Netzwerkisolierung jeweils einzeln, automatische Rückkehr nach ca. 120 s.
+
+=== category-auth-final.txt ===
+✔ gültiges Benutzer-Token übernimmt ausschliesslich die signierte Identität (7.2662ms)
+✔ ungültige Benutzer-ID: 401 statt Datenbankzugriff (0.9601ms)
+✔ fehlende Benutzer-ID: 401 statt Datenbankzugriff (0.592ms)
+✔ fehlende Ablaufzeit: 401 statt Datenbankzugriff (0.5943ms)
+✔ abgelaufen: 401 statt Datenbankzugriff (0.7835ms)
+✔ falscher Aussteller: 401 statt Datenbankzugriff (0.5068ms)
+✔ falscher Algorithmus: 401 statt Datenbankzugriff (0.5414ms)
+✔ falsche Signatur: 401 statt Datenbankzugriff (0.6313ms)
+✔ kein Token: 401 statt Datenbankzugriff (0.2156ms)
+✔ beschädigtes Token: 401 statt Datenbankzugriff (0.3529ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 333.3713
+
+=== cluster-api-final.txt ===
+✔ TC-K01 Kategorie erstellen, lesen, auflisten (626.0395ms)
+✔ TC-K02 Standardfarbe und Validierung (Name leer, Farbe ungültig) -> 400 (700.6328ms)
+✔ TC-K03 gleicher Name (auch andere Gross-/Kleinschreibung) -> 409, nach Löschen wieder erlaubt (612.048ms)
+✔ TC-K04 umbenennen und Farbe ändern (368.0702ms)
+✔ TC-K05 Löschen ist Soft-Delete: weg aus Liste und Prüf-Endpunkt, aber mit includeDeleted sichtbar (748.6578ms)
+✔ TC-K06 fremde Kategorien: lesen, ändern, löschen -> 404 (N02) (919.9029ms)
+✔ TC-K07 ohne Anmeldung -> 401, ungültige ID -> 404 (530.0695ms)
+✔ TC-E01 Registrieren -> Login -> Kategorie -> TODO -> erledigen -> Statistik -> Abmelden (1090.0573ms)
+✔ TC-E02 Frontend wird ausgeliefert, unbekannte API-Route -> JSON 404 (67.338ms)
+✔ TC-E03 Korrelations-ID: jede Antwort hat X-Request-Id und X-Instance (29.864ms)
+✔ TC-S01 neuer Benutzer: alles 0, Durchschnitt null ("Keine Daten") (689.2582ms)
+✔ TC-S02 Zahlen stimmen mit Testdaten überein (F07) (632.6841ms)
+✔ TC-S03 Durchschnitt misst Erstellung bis Erledigung (F08) (2755.2041ms)
+✔ TC-S04 Auswertung pro Kategorie mit Namen (779.8257ms)
+✔ TC-S05 nur eigene Daten (N02) und ohne Anmeldung 401 (746.6477ms)
+✔ TC-T01 TODO erstellen mit Standardwerten (860.4095ms)
+✔ TC-T02 Validierung: leerer Titel, falscher Status / Priorität -> 400 (416.5382ms)
+✔ TC-T03 bearbeiten, anzeigen, löschen (622.8514ms)
+✔ TC-T04 Status: erledigt setzt completedAt, wieder öffnen setzt es zurück (F04, Regel 5.3.4) (624.4068ms)
+✔ TC-T05 Kategorie zuordnen und entfernen (F06) (553.2501ms)
+✔ TC-T06 fremde oder gelöschte Kategorie -> 422 CATEGORY_NOT_FOUND (1021.8557ms)
+✔ TC-T07 TODO bleibt nach dem Löschen seiner Kategorie erhalten und bearbeitbar (Regel 5.3.2) (832.751ms)
+✔ TC-T08 Filter (Status, Priorität, Kategorie), Suche und Sortierung (781.5328ms)
+✔ TC-T09 fremde TODOs: lesen, ändern, löschen -> 404 (N02) (893.3615ms)
+✔ TC-T10 ohne Anmeldung -> 401 (82.2743ms)
+✔ TC-U01 Registrieren liefert 201 ohne Passwort-Hash in der Antwort (541.4102ms)
+✔ TC-U02 doppelte E-Mail -> 409 EMAIL_TAKEN (904.9052ms)
+✔ TC-U03 ungültige Eingaben -> 400 mit verständlicher Meldung (47.4037ms)
+✔ TC-U04 Login liefert ein JWT im vereinbarten Format (HS256, sub = userId) (595.968ms)
+✔ TC-U05 falsches Passwort -> 401 INVALID_CREDENTIALS (607.6896ms)
+✔ TC-U06 geschützte Endpunkte ohne / mit manipuliertem Token -> 401 (371.6301ms)
+✔ TC-U07 Profil ändern (Anzeigename) ohne Passwort, E-Mail nur mit Passwort (446.093ms)
+✔ TC-U08 Passwort ändern -> altes Passwort funktioniert nicht mehr (784.0702ms)
+✔ TC-U09 Abmelden -> 204 (429.944ms)
+✔ TC-U10 Konto löschen entfernt auch TODOs und Kategorien (Regel 5.3.3) (840.7967ms)
+ℹ tests 35
+ℹ suites 0
+ℹ pass 35
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6915.0858
+
+=== ha-vm-11-verified.txt ===
+PRECHECK: same user/category/todo/statistics through all four VM addresses
+Running timer as unit: m321-ha-restore-1792877096.timer
+Will run service as unit: m321-ha-restore-1792877096.service
+Running timer as unit: m321-ha-isolate-1792877096.timer
+Will run service as unit: m321-ha-isolate-1792877096.service
+Network isolation scheduled for 3 seconds from now; automatic restore in 120 seconds
+0s VM=up write/read/stats=OK
+2.2s VM=up write/read/stats=OK
+4.4s VM=DOWN The operation was aborted due to timeout
+13.3s VM=DOWN POST /categories: 503
+18.2s VM=DOWN POST /categories: 503
+21s VM=DOWN POST /categories: 503
+24.9s VM=DOWN GET /stats: 503
+29.9s VM=DOWN POST /categories: 503
+34.9s VM=DOWN write/read/stats=OK
+37.9s VM=DOWN POST /categories: 503
+42.8s VM=DOWN GET /todos/49e657ef-62cb-409f-ac4a-3c4f55bf04a0: 503
+48.8s VM=DOWN write/read/stats=OK
+51.9s VM=DOWN write/read/stats=OK
+54.8s VM=DOWN write/read/stats=OK
+57.8s VM=DOWN write/read/stats=OK
+60.8s VM=DOWN write/read/stats=OK
+63.8s VM=DOWN write/read/stats=OK
+66.8s VM=DOWN write/read/stats=OK
+69.8s VM=DOWN write/read/stats=OK
+72.8s VM=DOWN write/read/stats=OK
+75.8s VM=DOWN write/read/stats=OK
+78.8s VM=DOWN write/read/stats=OK
+81.8s VM=DOWN write/read/stats=OK
+84.8s VM=DOWN write/read/stats=OK
+87.8s VM=DOWN write/read/stats=OK
+90.8s VM=DOWN write/read/stats=OK
+93.8s VM=DOWN write/read/stats=OK
+96.8s VM=DOWN write/read/stats=OK
+100s VM=DOWN write/read/stats=OK
+103s VM=DOWN write/read/stats=OK
+106s VM=DOWN write/read/stats=OK
+109s VM=DOWN write/read/stats=OK
+112.1s VM=DOWN write/read/stats=OK
+115.1s VM=DOWN write/read/stats=OK
+118s VM=DOWN write/read/stats=OK
+121.1s VM=up write/read/stats=OK
+123.2s VM=up write/read/stats=OK
+125.5s VM=up write/read/stats=OK
+127.6s VM=up write/read/stats=OK
+129.8s VM=up write/read/stats=OK
+132.1s VM=up write/read/stats=OK
+134.3s VM=up write/read/stats=OK
+136.6s VM=up write/read/stats=OK
+138.8s VM=up write/read/stats=OK
+141.1s VM=up write/read/stats=OK
+143.3s VM=up write/read/stats=OK
+145.5s VM=up write/read/stats=OK
+147.7s VM=up write/read/stats=OK
+149.9s VM=up write/read/stats=OK
+152.2s VM=up write/read/stats=OK
+154.4s VM=up write/read/stats=OK
+PASS: 25 full operations during outage; all 47 acknowledged categories persisted on all endpoints
+
+=== ha-vm-13-verified.txt ===
+PRECHECK: same user/category/todo/statistics through all four VM addresses
+Running timer as unit: m321-ha-restore-1792876640.timer
+Will run service as unit: m321-ha-restore-1792876640.service
+Network isolation scheduled for 3 seconds from now; automatic restore in 120 seconds
+Running timer as unit: m321-ha-isolate-1792876640.timer
+Will run service as unit: m321-ha-isolate-1792876640.service
+0s VM=up write/read/stats=OK
+2.2s VM=up write/read/stats=OK
+4.4s VM=DOWN POST /categories: 500
+10.3s VM=DOWN POST /categories: 503
+15.2s VM=DOWN POST /categories: 503
+19s VM=DOWN POST /categories: 503
+21.9s VM=DOWN POST /categories: 503
+24.8s VM=DOWN POST /categories: 503
+27.7s VM=DOWN POST /categories: 503
+30.5s VM=DOWN POST /categories: 503
+33.4s VM=DOWN POST /categories: 503
+36.3s VM=DOWN POST /categories: 503
+39.1s VM=DOWN POST /categories: 503
+42s VM=DOWN POST /categories: 503
+44.9s VM=DOWN POST /categories: 503
+47.8s VM=DOWN POST /categories: 503
+50.6s VM=DOWN POST /categories: 503
+53.5s VM=DOWN POST /categories: 503
+56.4s VM=DOWN POST /categories: 503
+59.2s VM=DOWN POST /categories: 503
+62.1s VM=DOWN POST /categories: 503
+64.9s VM=DOWN POST /categories: 503
+67.8s VM=DOWN POST /categories: 503
+70.7s VM=DOWN POST /categories: 503
+73.5s VM=DOWN write/read/stats=OK
+76.8s VM=DOWN write/read/stats=OK
+79.8s VM=DOWN write/read/stats=OK
+82.8s VM=DOWN write/read/stats=OK
+85.8s VM=DOWN write/read/stats=OK
+88.8s VM=DOWN write/read/stats=OK
+91.8s VM=DOWN write/read/stats=OK
+94.8s VM=DOWN write/read/stats=OK
+97.8s VM=DOWN write/read/stats=OK
+100.8s VM=DOWN write/read/stats=OK
+103.8s VM=DOWN write/read/stats=OK
+106.8s VM=DOWN write/read/stats=OK
+109.8s VM=DOWN write/read/stats=OK
+112.8s VM=DOWN write/read/stats=OK
+115.7s VM=DOWN write/read/stats=OK
+118.7s VM=DOWN write/read/stats=OK
+121.7s VM=up write/read/stats=OK
+123.9s VM=up write/read/stats=OK
+126.1s VM=up write/read/stats=OK
+128.3s VM=up write/read/stats=OK
+130.5s VM=up write/read/stats=OK
+132.7s VM=up write/read/stats=OK
+134.9s VM=up write/read/stats=OK
+137.1s VM=up write/read/stats=OK
+139.3s VM=up write/read/stats=OK
+141.4s VM=up write/read/stats=OK
+143.7s VM=up write/read/stats=OK
+145.9s VM=up write/read/stats=OK
+148.1s VM=up write/read/stats=OK
+150.3s VM=up write/read/stats=OK
+152.5s VM=up write/read/stats=OK
+154.7s VM=up write/read/stats=OK
+PASS: 16 full operations during outage; all 35 acknowledged categories persisted on all endpoints
+
+=== ha-vm-16-verified.txt ===
+PRECHECK: same user/category/todo/statistics through all four VM addresses
+Running timer as unit: m321-ha-restore-1792876391.timer
+Will run service as unit: m321-ha-restore-1792876391.service
+Network isolation scheduled for 3 seconds from now; automatic restore in 120 seconds
+Running timer as unit: m321-ha-isolate-1792876391.timer
+Will run service as unit: m321-ha-isolate-1792876391.service
+0s VM=up write/read/stats=OK
+2.2s VM=up write/read/stats=OK
+4.4s VM=DOWN POST /categories: 500
+10.3s VM=DOWN POST /categories: 503
+15.2s VM=DOWN POST /categories: 503
+20.1s VM=DOWN POST /categories: 503
+25s VM=DOWN POST /categories: 503
+27.9s VM=DOWN POST /categories: 503
+30.7s VM=DOWN POST /categories: 503
+33.6s VM=DOWN POST /categories: 503
+36.5s VM=DOWN POST /categories: 503
+39.4s VM=DOWN POST /categories: 503
+42.2s VM=DOWN POST /categories: 503
+45.1s VM=DOWN POST /categories: 503
+48s VM=DOWN POST /categories: 503
+50.9s VM=DOWN POST /categories: 503
+53.7s VM=DOWN POST /categories: 503
+56.6s VM=DOWN POST /categories: 503
+59.5s VM=DOWN POST /categories: 503
+62.4s VM=DOWN POST /categories: 503
+65.3s VM=DOWN POST /categories: 503
+68.1s VM=DOWN POST /categories: 503
+71s VM=DOWN POST /categories: 503
+73.9s VM=DOWN POST /categories: 503
+76.8s VM=DOWN POST /categories: 503
+79.6s VM=DOWN POST /categories: 503
+82.5s VM=DOWN POST /categories: 503
+85.4s VM=DOWN write/read/stats=OK
+88.5s VM=DOWN write/read/stats=OK
+91.5s VM=DOWN write/read/stats=OK
+94.6s VM=DOWN write/read/stats=OK
+97.6s VM=DOWN write/read/stats=OK
+100.6s VM=DOWN write/read/stats=OK
+103.6s VM=DOWN write/read/stats=OK
+106.6s VM=DOWN write/read/stats=OK
+109.6s VM=DOWN write/read/stats=OK
+112.6s VM=DOWN write/read/stats=OK
+115.5s VM=DOWN write/read/stats=OK
+118.5s VM=DOWN write/read/stats=OK
+121.5s VM=up write/read/stats=OK
+123.7s VM=up write/read/stats=OK
+125.9s VM=up write/read/stats=OK
+128.2s VM=up write/read/stats=OK
+130.4s VM=up write/read/stats=OK
+132.6s VM=up write/read/stats=OK
+134.9s VM=up write/read/stats=OK
+137.1s VM=up write/read/stats=OK
+139.3s VM=up write/read/stats=OK
+141.5s VM=up write/read/stats=OK
+143.8s VM=up write/read/stats=OK
+146s VM=up write/read/stats=OK
+148.2s VM=up write/read/stats=OK
+150.7s VM=up write/read/stats=OK
+152.9s VM=up write/read/stats=OK
+PASS: 12 full operations during outage; all 30 acknowledged categories persisted on all endpoints
+
+=== ha-vm-17-verified.txt ===
+PRECHECK: same user/category/todo/statistics through all four VM addresses
+Running timer as unit: m321-ha-restore-1792876883.timer
+Will run service as unit: m321-ha-restore-1792876883.service
+Network isolation scheduled for 3 seconds from now; automatic restore in 120 seconds
+Running timer as unit: m321-ha-isolate-1792876883.timer
+Will run service as unit: m321-ha-isolate-1792876883.service
+0s VM=up write/read/stats=OK
+2.2s VM=up write/read/stats=OK
+4.4s VM=DOWN write/read/stats=OK
+7.4s VM=DOWN write/read/stats=OK
+10.4s VM=DOWN GET /stats: 503
+15.3s VM=DOWN GET /stats: 503
+20.3s VM=DOWN GET /stats: 503
+26.4s VM=DOWN write/read/stats=OK
+29.4s VM=DOWN write/read/stats=OK
+32.4s VM=DOWN write/read/stats=OK
+35.4s VM=DOWN write/read/stats=OK
+38.4s VM=DOWN write/read/stats=OK
+41.4s VM=DOWN write/read/stats=OK
+44.4s VM=DOWN write/read/stats=OK
+47.4s VM=DOWN write/read/stats=OK
+50.4s VM=DOWN write/read/stats=OK
+53.4s VM=DOWN write/read/stats=OK
+56.4s VM=DOWN write/read/stats=OK
+59.4s VM=DOWN write/read/stats=OK
+62.4s VM=DOWN write/read/stats=OK
+65.4s VM=DOWN write/read/stats=OK
+68.5s VM=DOWN write/read/stats=OK
+71.5s VM=DOWN write/read/stats=OK
+74.4s VM=DOWN write/read/stats=OK
+77.4s VM=DOWN write/read/stats=OK
+80.4s VM=DOWN write/read/stats=OK
+83.4s VM=DOWN write/read/stats=OK
+86.5s VM=DOWN write/read/stats=OK
+89.4s VM=DOWN write/read/stats=OK
+92.4s VM=DOWN write/read/stats=OK
+95.4s VM=DOWN write/read/stats=OK
+98.4s VM=DOWN write/read/stats=OK
+101.4s VM=DOWN write/read/stats=OK
+104.4s VM=DOWN write/read/stats=OK
+107.4s VM=DOWN write/read/stats=OK
+110.4s VM=DOWN write/read/stats=OK
+113.4s VM=DOWN write/read/stats=OK
+116.4s VM=DOWN write/read/stats=OK
+119.5s VM=DOWN write/read/stats=OK
+122.5s VM=up write/read/stats=OK
+124.9s VM=up write/read/stats=OK
+127s VM=up write/read/stats=OK
+129.3s VM=up write/read/stats=OK
+131.4s VM=up write/read/stats=OK
+133.7s VM=up write/read/stats=OK
+135.9s VM=up write/read/stats=OK
+138.1s VM=up write/read/stats=OK
+140.4s VM=up write/read/stats=OK
+142.6s VM=up write/read/stats=OK
+144.8s VM=up write/read/stats=OK
+147s VM=up write/read/stats=OK
+149.2s VM=up write/read/stats=OK
+151.4s VM=up write/read/stats=OK
+153.7s VM=up write/read/stats=OK
+PASS: 34 full operations during outage; all 55 acknowledged categories persisted on all endpoints

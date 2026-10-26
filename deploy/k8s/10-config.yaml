@@ -1,0 +1,11 @@
+# Nicht geheime Konfiguration: Service-Adressen. Secrets (Passwörter, JWT_SECRET) kommen NICHT hierhin,
+# sondern als Secret "todo-app-secrets" aus der .env (siehe README, Abschnitt Kubernetes).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: todo-app-config
+  namespace: todo-app
+data:
+  TODO_SERVICE_URL: http://todo-service:3000
+  CATEGORY_SERVICE_URL: http://category-service:3000
+  JWT_TTL_SECONDS: "3600"

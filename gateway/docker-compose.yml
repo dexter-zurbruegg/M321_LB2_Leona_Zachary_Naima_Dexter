@@ -1,0 +1,24 @@
+# Gateway + Frontend EINZELN starten, z. B. wenn jeder Service auf einer eigenen VM läuft (verteilte Variante):
+#   USER_UPSTREAM_1=10.0.0.11:8081 USER_UPSTREAM_2=10.0.0.12:8081 TODO_UPSTREAM_1=... docker compose up -d --build
+# Ohne Angaben: alle Services auf derselben VM über die Host-Ports 8081-8084 (siehe services/*/docker-compose.yml).
+# network_mode host: nginx sieht direkt die Ports der VM (127.0.0.1:808x) und lauscht selbst auf LISTEN_PORT.
+name: gateway
+services:
+  gateway:
+    build:
+      context: ..
+      dockerfile: gateway/Dockerfile
+    image: todo-app/gateway:1.0
+    restart: always
+    network_mode: host
+    environment:
+      LISTEN_PORT: ${LISTEN_PORT:-8080}
+      # Je Service zwei Instanzen. Läuft nur eine, beide Werte gleich setzen (Standard).
+      USER_UPSTREAM_1: ${USER_UPSTREAM_1:-127.0.0.1:8081}
+      USER_UPSTREAM_2: ${USER_UPSTREAM_2:-127.0.0.1:8081}
+      TODO_UPSTREAM_1: ${TODO_UPSTREAM_1:-127.0.0.1:8082}
+      TODO_UPSTREAM_2: ${TODO_UPSTREAM_2:-127.0.0.1:8082}
+      CATEGORY_UPSTREAM_1: ${CATEGORY_UPSTREAM_1:-127.0.0.1:8083}
+      CATEGORY_UPSTREAM_2: ${CATEGORY_UPSTREAM_2:-127.0.0.1:8083}
+      STATS_UPSTREAM_1: ${STATS_UPSTREAM_1:-127.0.0.1:8084}
+      STATS_UPSTREAM_2: ${STATS_UPSTREAM_2:-127.0.0.1:8084}

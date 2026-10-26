@@ -1,0 +1,33 @@
+[
+  {
+    "test": "CAT-01",
+    "status": "PASS",
+    "detail": "Anmeldung und Eingabevalidierung"
+  },
+  {
+    "test": "CAT-02",
+    "status": "PASS",
+    "detail": "Erstellen, Lesen, Farbe, doppelte Namen"
+  },
+  {
+    "test": "CAT-03",
+    "status": "PASS",
+    "detail": "Fremdzugriff auf Lesen/Aendern/Loeschen abgewehrt"
+  },
+  {
+    "test": "CAT-04",
+    "status": "PASS",
+    "detail": "Prozessabsturz: RestartCount gestiegen; nach 0.98 s bereit; Daten vorhanden"
+  },
+  {
+    "test": "CAT-05",
+    "status": "PASS",
+    "detail": "Datenbank-Neustart: nach 0.76 s bereit; gleiche Kategorie vorhanden"
+  },
+  {
+    "test": "CAT-06",
+    "status": "PASS",
+    "detail": "Soft-Delete, geloeschte Kategorie sichtbar, Name wiederverwendbar"
+  }
+]
+PASS: 6/6, Testdaten bereinigt, Service und Datenbank bereit

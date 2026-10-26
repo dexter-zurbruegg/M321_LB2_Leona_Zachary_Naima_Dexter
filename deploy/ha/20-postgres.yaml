@@ -1,0 +1,95 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: todo-pg
+  namespace: todo-app
+spec:
+  instances: 3
+  imageName: ghcr.io/cloudnative-pg/postgresql:17
+  primaryUpdateStrategy: unsupervised
+  failoverDelay: 5
+  affinity:
+    enablePodAntiAffinity: true
+    podAntiAffinityType: required
+    topologyKey: kubernetes.io/hostname
+  storage:
+    size: 2Gi
+    storageClass: m321-local
+  postgresql:
+    synchronous:
+      method: any
+      number: 1
+      dataDurability: required
+    parameters:
+      shared_buffers: 64MB
+      max_connections: "100"
+      max_wal_size: 256MB
+      min_wal_size: 80MB
+  resources:
+    requests:
+      cpu: 100m
+      memory: 192Mi
+    limits:
+      memory: 512Mi
+  managed:
+    roles:
+      - name: user_svc
+        ensure: present
+        login: true
+        superuser: false
+        createdb: false
+        createrole: false
+        passwordSecret:
+          name: user-svc
+      - name: todo_svc
+        ensure: present
+        login: true
+        superuser: false
+        createdb: false
+        createrole: false
+        passwordSecret:
+          name: todo-svc
+      - name: category_svc
+        ensure: present
+        login: true
+        superuser: false
+        createdb: false
+        createrole: false
+        passwordSecret:
+          name: category-svc
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: todo-users
+  namespace: todo-app
+spec:
+  name: users
+  owner: user_svc
+  databaseReclaimPolicy: retain
+  cluster:
+    name: todo-pg
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: todo-todos
+  namespace: todo-app
+spec:
+  name: todos
+  owner: todo_svc
+  databaseReclaimPolicy: retain
+  cluster:
+    name: todo-pg
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: todo-categories
+  namespace: todo-app
+spec:
+  name: categories
+  owner: category_svc
+  databaseReclaimPolicy: retain
+  cluster:
+    name: todo-pg
