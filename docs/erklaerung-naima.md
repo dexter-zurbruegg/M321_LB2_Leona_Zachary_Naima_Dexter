@@ -40,7 +40,7 @@ So zeigt das Frontend «~~Schule~~», und neue Zuordnungen sind trotzdem verbote
 |---|---|
 | `services/category-service/src/app.js` | alle Endpunkte, `findOwnActive()`, Validierung Name/Farbe |
 | `src/server.js` | Tabelle `categories` + **partieller eindeutiger Index** |
-| `src/auth.js`, `db.js`, `http.js`, `health.js` | gleich wie in den anderen Services |
+| `src/auth.js`, `db.js`, `http.js`, `health.js` | gemeinsame Grundstruktur; Kategorien-JWT zusätzlich auf erforderliches exp und UUID-sub geprüft |
 | `frontend/js/pages/categories.js` | deine Seite |
 | `scripts/ha-test.sh` | Ausfalltests (mit Zachary) |
 
@@ -79,56 +79,7 @@ await pool.query('UPDATE categories SET deleted_at = now(), updated_at = now() W
 
 **Farbe prüfen:** nur `#rrggbb` (Regex `^#[0-9a-fA-F]{6}$`), gespeichert in Kleinbuchstaben. Ohne Angabe: Standardblau.
 
-## 4. Ausfalltests (mit Zachary)
 
-`./scripts/ha-test.sh` auf der VM ausführen. Es dauert ~1 Minute und gibt eine Markdown-Tabelle aus (→ `docs/testprotokoll.md` §6).
+## 4. Betrieb, Tests und Demo
 
-| Test | Was das Skript macht | Was es beweist |
-|---|---|---|
-| HA-01 | 20 Anfragen, zählt `X-Instance` | Last wird verteilt (10/10) |
-| HA-02 | `docker stop todo-service-1` | eine Instanz weg → alles geht weiter |
-| HA-03 | `kill -9` auf Node in **category-service-2** | automatischer Neustart, Zeit gemessen (~1.5 s) |
-| HA-04 | **beide** category-service stoppen | TODOs gehen weiter, Fehlermeldung verständlich |
-| HA-05 | beide todo-service stoppen | Statistik meldet nach 2 s verständlich |
-| HA-06 | `docker restart db` | Daten bleiben (N04) |
-
-**Warum nicht einfach `docker kill`?** Docker behandelt `docker kill` wie einen manuellen Stopp und startet den Container **nicht** neu.
-Ein echter Absturz ist, wenn der Prozess *im* Container stirbt. Deshalb: `docker exec category-service-2 sh -c 'kill -9 $(pgrep -f "node src/server.js")'`.
-Weil `tini` PID 1 ist, endet dann der Container, und `restart: always` greift.
-
-## 5. So demonstrierst du es
-
-1. Kategorien «Schule» (blau) und «Freizeit» (pink) anlegen; nochmals «schule» → Meldung «gibt es schon».
-2. Bei den TODOs ein TODO «Schule» zuordnen. Dann «Schule» löschen → TODO zeigt «Schule» **durchgestrichen**, ist aber noch da.
-3. **Ausfall live:** `docker stop category-service-1 category-service-2` → TODO-Seite neu laden → gelber Hinweis, TODOs funktionieren.
-   TODO mit Kategorie speichern → klare Fehlermeldung. `docker start category-service-1 category-service-2`.
-4. Absturz-Test zeigen: Befehl aus Abschnitt 4, dann `docker ps` → «Up 2 seconds».
-
-## 6. Fragen der Lehrperson und Antworten
-
-**Wie weiss der TODO-Service, dass eine Kategorie gültig ist?** Er ruft `GET /categories/{id}` mit dem Token des Benutzers auf. 200 → gültig. 404 → fremd, gelöscht oder unbekannt.
-Deshalb braucht es keine zusätzliche Service-zu-Service-Authentifizierung: Mein Service prüft das Benutzer-Token wie bei jedem anderen Aufruf.
-
-**Warum speichert dein Service nicht, welche TODOs zu einer Kategorie gehören?** Das wären doppelte Daten in zwei Services, und die laufen irgendwann auseinander.
-Die Zuordnung (`categoryId`) gehört dem TODO, also Dexters Service (Regel 5.3.1).
-
-**Warum Soft-Delete und nicht Hard-Delete?** Damit bestehende TODOs ihre Kategorie behalten und der Name noch angezeigt werden kann (Regel 5.3.2). Beim Konto löschen wird dagegen alles hart gelöscht (Datenschutz).
-
-**Was ist ein partieller Index?** Ein Index, der nur für Zeilen gilt, die eine Bedingung erfüllen (`WHERE deleted_at IS NULL`). So gilt die Eindeutigkeit nur für aktive Kategorien.
-
-**Was passiert, wenn dein Service ganz ausfällt?** TODOs funktionieren weiter. Neue Zuordnungen sind kurz nicht möglich (503 mit Meldung). Die Statistik kommt ohne Kategorienamen.
-Das haben wir bewusst so gebaut (Regel 5.3.5) und mit HA-04 getestet.
-
-**Wie lange dauert der automatische Neustart?** Gemessen 1.1–1.5 s mit Docker, ~3 s in Kubernetes. Bei wiederholten Abstürzen wartet Kubernetes immer länger (CrashLoopBackOff), damit ein kaputter Container nicht dauernd neu startet.
-
-**Was ist euer Single Point of Failure?** Die eine PostgreSQL-Instanz (und in Compose das eine Gateway). Dank Volume gehen keine Daten verloren, aber während eines DB-Neustarts sind die Services kurz nicht bereit.
-
-## 7. Deine Tests
-
-- API: `tests/api/category.test.js` TC-K01–K07 → `BASE_URL=http://<vm>:8080 node --test tests/api/category.test.js`
-- HA: `scripts/ha-test.sh` (alle), `scripts/k8s-ha-test.sh` (Kubernetes)
-
-## 8. Vor der Abgabe selbst tun
-
-- [ ] Kapitel 4.3 + 5 in `docs/dokumentation.md` lesen und in eigenen Worten anpassen.
-- [ ] `./scripts/ha-test.sh` einmal auf deiner VM laufen lassen und die eigene Tabelle ins Testprotokoll übernehmen (mit Datum).
+[Naimas Komponentenbeschreibung](naima-umsetzung-tests.md) enthält Integration, JWT-Korrektur, Datenhaltung und Ausfallmessungen. [Sprechzettel](demo-naima.md): komplette Bedienung und typische Fragen. [Testprotokoll](testprotokoll.md): Rohbelege und offene Fälle. Aktiver Einstieg Port 30080, zwei Kategorie-Pods, repliziertes PostgreSQL. Docker-Neustartzeiten nicht als VM-Failover ausgeben.

@@ -8,7 +8,7 @@ Wer eine Schnittstelle ändert, muss das mit allen abstimmen, die sie benutzen (
 | Thema | Vereinbarung |
 |---|---|
 | Protokoll | HTTP/1.1 mit JSON (`Content-Type: application/json`), UTF-8 |
-| Einstiegspunkt | Browser und Tests rufen nur den Reverse Proxy auf: `http://<host>:8080/api/...`. Der Proxy entfernt `/api` und leitet an den Service weiter (z. B. `/api/todos` → todo-service `/todos`). |
+| Einstiegspunkt | Browser und Tests rufen nur den Reverse Proxy auf: `http://10.4.31.11:30080/api/... (alternativ .13/.16/.17)`. Der Proxy entfernt `/api` und leitet an den Service weiter (z. B. `/api/todos` → todo-service `/todos`). |
 | Service-Ports | Jeder Service hört intern auf Port `3000`. Einzeln gestartet (N01): user `8081`, todo `8082`, category `8083`, stats `8084`. |
 | IDs | UUID v4 als String, z. B. `"3f2b9c1e-8d4a-4f6b-9c2e-1a2b3c4d5e6f"` |
 | Zeiten | ISO-8601 in UTC, z. B. `"2026-10-20T08:15:00.000Z"` |
@@ -40,7 +40,7 @@ Beispiel-Payload:
 { "sub": "3f2b9c1e-8d4a-4f6b-9c2e-1a2b3c4d5e6f", "email": "lea@example.com", "iat": 1792483200, "exp": 1792486800, "iss": "user-service" }
 ```
 
-Jeder Service prüft das Token selbst (Signatur, Ablaufzeit, Aussteller), ohne den Benutzer-Service zu fragen.
+Jeder Service prüft das Token selbst. Vertrag: HS256, Aussteller user-service, UUID-sub und erforderliches endliches, nicht abgelaufenes exp. Offene Abweichung: Benutzer-/TODO-Service erzwingen erforderliches exp und UUID-sub noch nicht so streng wie Kategorien und Statistik.
 Fehlt das Token oder ist es ungültig, folgt `401 UNAUTHORIZED`.
 
 **Abmelden:** Das Token ist zustandslos. Beim Abmelden löscht das Frontend es aus dem `localStorage`.
@@ -72,6 +72,8 @@ Jede Fehlerantwort hat dieselbe Form. `message` ist auf Deutsch und kann direkt 
 | `GET /health` | `200 {"status":"ok","service":"todo-service","instance":"…","db":"ok"}`, bei DB-Problem `503` | Docker-Healthcheck, Kubernetes-readinessProbe |
 | `GET /health/live` | `200` solange der Prozess läuft | Kubernetes-livenessProbe |
 
+Statistik prüft bei Health nur den Prozess, keine DB.
+
 Über den Proxy: `GET /api/health/user`, `/api/health/todo`, `/api/health/category`, `/api/health/stats`.
 
 ### 1.4 Aufrufe zwischen Services, Timeouts, Ausfälle
@@ -81,11 +83,11 @@ Jede Fehlerantwort hat dieselbe Form. `message` ist auf Deutsch und kann direkt 
 | todo-service → category-service | `GET /categories/{id}` | Gehört die Kategorie dem Benutzer und ist sie aktiv? | TODO **mit** Kategorie speichern: `503`. TODOs anzeigen und ohne Kategorie speichern: funktioniert weiter. |
 | stats-service → todo-service | `GET /todos` | Alle TODOs des Benutzers für die Auswertung | `503` mit Meldung «Der TODO-Service ist gerade nicht erreichbar …» |
 | stats-service → category-service | `GET /categories?includeDeleted=true` | Namen und Farben für «pro Kategorie» | Statistik kommt trotzdem, `categoriesAvailable: false`, Namen `null` |
-| user-service → todo-service | `DELETE /todos` | Konto löschen: alle TODOs weg | `503`, Konto bleibt bestehen (nichts halb gelöscht) |
+| user-service → todo-service | `DELETE /todos` | Konto löschen: alle TODOs weg | `503` möglich; Konto bleibt, vorherige Teillöschungen werden nicht zurückgerollt |
 | user-service → category-service | `DELETE /categories` | Konto löschen: alle Kategorien weg | wie oben |
 
 - Der aufrufende Service schickt das **Token des Benutzers** mit. So prüft der aufgerufene Service selbst, wem die Daten gehören.
-- **Timeout 2 s** pro Aufruf (`SERVICE_TIMEOUT_MS`). Bei einem Verbindungsfehler folgt **ein zweiter Versuch** (die andere Instanz kann antworten). Nach einem Timeout gibt es keinen zweiten Versuch.
+- **Timeout 2 s** pro Aufruf (`SERVICE_TIMEOUT_MS`). Bei Verbindungsfehler oder 5xx-Antwort folgt höchstens **ein zweiter Versuch**. Nach einem Timeout gibt es keinen zweiten Versuch. Kein pauschales 2-s-Limit für die gesamte Browseranfrage.
 - Adressen sind konfigurierbar: `TODO_SERVICE_URL`, `CATEGORY_SERVICE_URL` (Standard: `http://todo-service:3000` usw.).
 
 ---

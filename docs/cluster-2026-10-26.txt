@@ -1,0 +1,54 @@
+NAME            STATUS   ROLES    AGE    VERSION
+m321-11-ap23a   Ready    <none>   129d   v1.35.6
+m321-13-ap23a   Ready    <none>   7d     v1.35.6
+m321-16-ap23a   Ready    <none>   7d     v1.35.6
+m321-17-ap23a   Ready    <none>   7d     v1.35.6
+NAME               READY   UP-TO-DATE   AVAILABLE   AGE
+category-service   2/2     2            2           6d23h
+gateway            2/2     2            2           6d23h
+stats-service      2/2     2            2           6d23h
+todo-service       2/2     2            2           6d23h
+user-service       2/2     2            2           6d23h
+NAME      AGE   INSTANCES   READY   STATUS                     PRIMARY
+todo-pg   35h   3           3       Cluster in healthy state   todo-pg-2
+NAME                               READY   STATUS    RESTARTS      AGE   IP             NODE            NOMINATED NODE   READINESS GATES
+category-service-fc754c8b9-drjnp   1/1     Running   0             34h   10.1.66.90     m321-16-ap23a   <none>           <none>
+category-service-fc754c8b9-js9ms   1/1     Running   0             34h   10.1.128.159   m321-13-ap23a   <none>           <none>
+gateway-57c74c5994-m6jtd           1/1     Running   0             34h   10.1.128.160   m321-13-ap23a   <none>           <none>
+gateway-57c74c5994-zldkb           1/1     Running   0             34h   10.1.66.91     m321-16-ap23a   <none>           <none>
+stats-service-6869cdbb87-8lfgx     1/1     Running   0             34h   10.1.35.17     m321-17-ap23a   <none>           <none>
+stats-service-6869cdbb87-hsgp6     1/1     Running   0             34h   10.1.128.157   m321-13-ap23a   <none>           <none>
+todo-pg-1                          1/1     Running   4 (34h ago)   35h   10.1.128.135   m321-13-ap23a   <none>           <none>
+todo-pg-2                          1/1     Running   3 (34h ago)   35h   10.1.66.73     m321-16-ap23a   <none>           <none>
+todo-pg-3                          1/1     Running   0             35h   10.1.70.138    m321-11-ap23a   <none>           <none>
+todo-service-dbf8c84c4-lpxlf       1/1     Running   0             34h   10.1.66.89     m321-16-ap23a   <none>           <none>
+todo-service-dbf8c84c4-wrhdv       1/1     Running   0             34h   10.1.128.161   m321-13-ap23a   <none>           <none>
+user-service-7d5987584c-422n4      1/1     Running   0             34h   10.1.35.16     m321-17-ap23a   <none>           <none>
+user-service-7d5987584c-pnbj9      1/1     Running   0             34h   10.1.128.158   m321-13-ap23a   <none>           <none>
+namespace/todo-app unchanged (server dry run)
+storageclass.storage.k8s.io/m321-local unchanged (server dry run)
+configmap/todo-app-config unchanged (server dry run)
+configmap/todo-runtime-config unchanged (server dry run)
+service/category-service unchanged (server dry run)
+service/gateway unchanged (server dry run)
+service/stats-service unchanged (server dry run)
+service/todo-service unchanged (server dry run)
+service/user-service unchanged (server dry run)
+persistentvolume/m321-postgres-11 unchanged (server dry run)
+persistentvolume/m321-postgres-13 unchanged (server dry run)
+persistentvolume/m321-postgres-16 unchanged (server dry run)
+persistentvolume/m321-postgres-17 unchanged (server dry run)
+deployment.apps/category-service unchanged (server dry run)
+deployment.apps/gateway unchanged (server dry run)
+deployment.apps/stats-service unchanged (server dry run)
+deployment.apps/todo-service unchanged (server dry run)
+deployment.apps/user-service unchanged (server dry run)
+poddisruptionbudget.policy/category-service configured (server dry run)
+poddisruptionbudget.policy/gateway configured (server dry run)
+poddisruptionbudget.policy/stats-service configured (server dry run)
+poddisruptionbudget.policy/todo-service configured (server dry run)
+poddisruptionbudget.policy/user-service configured (server dry run)
+cluster.postgresql.cnpg.io/todo-pg configured (server dry run)
+database.postgresql.cnpg.io/todo-categories unchanged (server dry run)
+database.postgresql.cnpg.io/todo-todos unchanged (server dry run)
+database.postgresql.cnpg.io/todo-users unchanged (server dry run)

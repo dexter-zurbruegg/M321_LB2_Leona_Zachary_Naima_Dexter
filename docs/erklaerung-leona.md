@@ -1,5 +1,7 @@
 # Erklär-Doku Leona: Benutzer-Service + Login (JWT)
 
+Stand 26.10.2026: ergänzende Lernhilfe; [gemeinsame Doku](dokumentation.md), [Betrieb](betrieb-cluster.md) und [aktuelle Tests](testprotokoll.md) sind massgebend. Individuelle Aussagen selbst prüfen; keine persönliche Durchführung wird ergänzt.
+
 > **TL;DR:** Dein Service verwaltet Konten und stellt beim Login ein **JWT** aus: ein signierter «Ausweis», den das Frontend bei jedem Aufruf mitschickt.
 > Alle anderen Services prüfen diesen Ausweis selbst und nehmen die Benutzer-ID daraus. Passwörter speicherst du nur als **bcrypt-Hash**.
 > Zusätzlich gehört dir (mit Dexter) der Reverse Proxy und im Frontend die Seiten Anmelden, Registrieren und Konto.
@@ -88,25 +90,13 @@ await callService('Der Kategorien-Service', `${CATEGORY_URL}/categories`, opts);
 await pool.query('DELETE FROM users WHERE id = $1', [req.user.id]);
 ```
 
-Ist ein Service weg, wirft `callService` einen 503-Fehler. Das Konto bleibt dann bestehen, so wird nichts halb gelöscht.
+Ist ein Service weg, wirft `callService` einen 503-Fehler. Das Konto bleibt dann bestehen, bereits erfolgreiche Löschschritte werden bei späterem Fehler nicht zurückgerollt.
 
 **Reverse Proxy (mit Dexter):** Lies Dexters Erklär-Doku Abschnitt «Gateway». Du solltest erklären können: `/api/auth/` geht an `user_service`, und dort gibt es zwei Server.
 
 ## 4. So demonstrierst du es
 
-1. Im Browser **registrieren** → landet direkt auf den TODOs (Registrieren + Login in einem Schritt).
-2. Abmelden, mit **falschem Passwort** anmelden → rote Meldung «E-Mail oder Passwort ist falsch».
-3. Richtig anmelden. In den Browser-DevTools unter Application → Local Storage → `todo-app-token` das Token kopieren und auf **jwt.io** einfügen → Payload mit `sub`, `exp` zeigen.
-4. Optional im Terminal zeigen, dass ein geändertes Token abgelehnt wird:
-   ```bash
-   curl -i http://<vm>:8080/api/users/me -H "Authorization: Bearer abc.def.ghi"    # → 401
-   ```
-5. In der DB zeigen, dass kein Klartext-Passwort gespeichert ist:
-   ```bash
-   docker exec db psql -U postgres -d users -c "SELECT email, password_hash FROM users LIMIT 2;"
-   ```
-   → `$2b$10$…` = bcrypt, Kostenfaktor 10.
-6. Konto-Seite: Namen ändern; Konto löschen → Login geht nicht mehr.
+Folge dem [gemeinsamen Demoablauf](praesentation.md) auf Port 30080. Zeige deinen fachlichen Ablauf, die verwendete API und die aktuelle Pod-Platzierung. Verwende entbehrliche Testkonten, keine echten Tokens auf externen Webseiten. Ausfallprüfungen nur im geprobten Cluster-Szenario; alte Docker-Stop-Befehle steuern den aktiven Cluster nicht.
 
 ## 5. Fragen der Lehrperson und Antworten
 
@@ -129,17 +119,17 @@ Schwäche: Ein kopiertes Token gilt bis `exp` (1 h). Lösung wäre eine Sperrlis
 
 **Warum dieselbe Fehlermeldung bei falscher E-Mail und falschem Passwort?** Sonst könnte ein Angreifer herausfinden, welche E-Mails registriert sind (User Enumeration).
 
-**Was passiert beim Konto löschen, wenn der TODO-Service gerade down ist?** 503 «Der TODO-Service ist gerade nicht erreichbar». Das Konto bleibt, nichts ist halb gelöscht. Später nochmals versuchen.
+**Was passiert beim Konto löschen, wenn der TODO-Service gerade down ist?** 503 «Der TODO-Service ist gerade nicht erreichbar». Das Konto bleibt; vorherige Teillöschungen sind möglich. Wiederholbarkeit und Fehlerfälle sind noch zu prüfen.
 
 **Wie stellen die anderen Services sicher, dass ich nur meine Daten sehe?** Die userId kommt nur aus dem geprüften Token (`sub`). Jede Abfrage hat `AND user_id = $2`. Fremde IDs → 404 (Test TC-T09, TC-K06).
 
 ## 6. Deine Tests
 
 - Unit: `services/user-service/test/auth.test.js` (gültig, fehlend, falsches Secret, abgelaufen) → `npm test`
-- API: `tests/api/user.test.js` TC-U01–U10 → `BASE_URL=http://<vm>:8080 node --test tests/api/user.test.js`
+- API: `tests/api/user.test.js` TC-U01–U10 → `BASE_URL=http://10.4.31.11:30080 node --test tests/api/user.test.js`
 
 ## 7. Vor der Abgabe selbst tun
 
 - [ ] Kapitel 4.1 in `docs/dokumentation.md` lesen und **in eigenen Worten** anpassen (Einzelbewertung!).
-- [ ] Einmal selbst auf deiner LernMAAS-VM `docker compose up -d --build` ausführen und dich registrieren.
-- [ ] Ein Token auf jwt.io anschauen und die drei Teile erklären können.
+- [ ] Eigenen Ablauf auf dem bestehenden Cluster selbst durchgehen; Betriebsanleitung beachten.
+- [ ] JWT-Aufbau mit einem erfundenen Beispiel erklären; kein gültiges Token veröffentlichen.

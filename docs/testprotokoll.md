@@ -1,48 +1,15 @@
-# Testprotokoll: Verteilte TODO-App
+# Testprotokoll – gemeinsamer HA-Cluster
 
-Gruppe Leona · Zachary · Naima · Dexter · M321 LB2 · Testdurchführung 15.10.2026
+Stand 26.10.2026, App-Bezug f74f737. MicroK8s v1.35.6 auf vier Team-VMs, CloudNativePG 1.30.1, PostgreSQL 17 mit drei Instanzen, Namespace todo-app.
 
-## TL;DR
+**Aktuell:** 35/35 API-Tests am 26.10.; vier Ready-Nodes, fünf Deployments je 2/2, DB 3/3. [API-Rohlog](api-2026-10-26.txt), [Clusterprüfung](cluster-2026-10-26.txt). Alle nachfolgend mit 24.10. bezeichneten Ausfall-/Unit-Prüfungen sind historische Nachweise, keine neuen Ausfälle heute. Die sieben Kategorie-API-Fälle sind Teil der 35, nicht zusätzlich.
 
-| Ebene | Anzahl | Ergebnis |
-|---|---:|---|
-| Unit-Tests (Leona 4, Dexter 3, Zachary 7) | 14 | ✅ 14/14 |
-| API-Tests über den Proxy (Leona 10, Dexter 10, Naima 7, Zachary 5, End-to-End 3) | 35 | ✅ 35/35, in allen drei Betriebsarten |
-| Ausfalltests Docker Compose | 6 | ✅ 6/6, dreimal hintereinander |
-| Ausfalltests Kubernetes | 3 | ✅ 3/3 |
-| Manuelle Tests Frontend (Desktop + Mobile) | 8 | ✅ 8/8 |
+Ausführung mit Codex-Unterstützung; keine persönliche Durchführung anderer Teammitglieder daraus ableiten. [Alter Bericht](testprotokoll-historisch.md) getrennt erhalten. Testclient: Node.js 22+, Schulnetz/VPN, zufällige eigene Testbenutzer; nicht alle Testkonten werden automatisch entfernt.
 
-## 1. Testumgebung
+## Gemeinsame API-Testfälle
 
-| | |
-|---|---|
-| Host | Linux-VM (Debian 13, Docker 28, Docker Compose v2). Gleiche Software wie die LernMAAS-VM M321 (Ubuntu, Docker, microk8s) |
-| System unter Test | Stand Branch `develop`, gestartet mit `docker compose up -d --build` (10 Container: 4 Services × 2 Instanzen, PostgreSQL 17, nginx 1.28) |
-| Kubernetes | k3s v1.31 (gleiche Manifeste wie für microk8s), 2 Replicas pro Service + 2 Gateway-Pods |
-| Verteilte Variante | jeder Service einzeln über seine eigene `docker-compose.yml` (Ports 8081–8084) + Gateway einzeln |
-| Testwerkzeuge | Node.js Test-Runner (`node --test`) mit `fetch`, Bash + curl + Docker-CLI (Ausfalltests), Headless-Chrome (manuelle Abläufe, Screenshots) |
-| Testdaten | Jeder Test legt eigene, zufällige Benutzer an (`<prefix>-<zufall>@example.com`), Tests beeinflussen sich nicht |
 
-**Ausführen**
-
-```bash
-(cd services/user-service && npm install && npm test)    # Unit-Tests, analog todo-service, stats-service
-BASE_URL=http://<vm-ip>:8080 node --test tests/api/       # API-Tests
-./scripts/ha-test.sh                                      # Ausfalltests Compose
-BASE_URL=http://<vm-ip>:30080 ./scripts/k8s-ha-test.sh   # Ausfalltests Kubernetes
-```
-
-## 2. Vorgehen
-
-- **Unit-Tests** prüfen reine Logik ohne Netzwerk und Datenbank: JWT-Prüfung, Statuswechsel, Statistik-Berechnung mit bekannten Zeitwerten.
-- **API-Tests** prüfen jeden Service über den echten Proxy, so wie das Frontend ihn benutzt. Jede Person hat ein eigenes Testfile zu ihrem Service.
-  Getestet werden der Normalfall, die Validierung, die Zugriffsrechte (N02) und die Fachregeln aus der Planung (5.3.x).
-- **Ausfalltests** stoppen oder beenden gezielt Container/Pods und messen, was der Benutzer davon merkt.
-- **Manuelle Tests** prüfen den Ablauf im Browser auf Desktop und Mobile.
-
-## 3. API-Testfälle
-
-Legende: ✅ bestanden. Alle Tests bestanden am 15.10.2026 gegen Docker Compose, Kubernetes (k3s) und die verteilte Variante.
+Legende: ✅ 35/35 am 26.10.2026 gegen den MicroK8s-Cluster auf Port 30080 bestanden.
 
 ### 3.1 Benutzer-Service (Leona): `tests/api/user.test.js`
 
@@ -104,74 +71,102 @@ Legende: ✅ bestanden. Alle Tests bestanden am 15.10.2026 gegen Docker Compose,
 | TC-E02 | F09, F10 | Startseite laden; unbekannte API-Route | HTML mit «TODO-App»; 404 im JSON-Fehlerformat | ✅ |
 | TC-E03 | Monitoring | beliebige Anfrage | Header `X-Request-Id` (32 Hex-Zeichen) und `X-Instance` vorhanden | ✅ |
 
-## 4. Einzelstart und verteilte Variante (N01, N05)
 
-| ID | Vorgehen | Erwartet | Ergebnis |
+## Definitionen und detaillierte Nachweise vom 24.10.
+
+
+### Umgebung und Bewertungsmassstab
+
+Die hier protokollierten Prüfungen wurden am 24.10.2026 durchgeführt. Der Cluster verwendet MicroK8s v1.35.6, Node.js 22 in den App-Containern, PostgreSQL 17 und CloudNativePG 1.30.1. Der abschliessend veröffentlichte Codebezug ist `f74f737`. Die Rohprotokolle nennen die tatsächlich ausgeführten Fälle und Ergebnisse. [Rohbelege](nachweise-2026-10-24.txt)
+
+Die API-Tests verwenden getrennte zufällige Benutzer und durchlaufen das gemeinsame Gateway. Die JWT-Tests prüfen die Middleware mit einem ausschliesslich für Tests verwendeten Secret. Testdefinitionen und Ergebnisprotokoll sind hier zur Wiederholung zusammengeführt; daraus wird keine frühere, nicht belegte Planung der Tests abgeleitet.
+
+Ein API-Test ist bestanden, wenn Status und fachlicher Zustand mit dem erwarteten Ergebnis übereinstimmen. Ein VM-Ausfalltest ist bestanden, wenn die Isolation tatsächlich beobachtet wird, noch während der Isolation wieder vollständige Abläufe gelingen, die VM zurückkehrt und alle bestätigten Kategorie-IDs anschliessend über alle vier Einstiege vorhanden sind. Eine vorübergehende Fehlerphase ist in diesen Ausfalltests zulässig und wird separat ausgewiesen.
+
+### Fachliche Kategorieprüfungen
+
+Gemeinsame Voraussetzung für TC-K01 bis TC-K07: erreichbarer Cluster, leere eigene Testdaten und ein gültiger Benutzer-Token, soweit der Test nicht gerade dessen Fehlen prüft. Datei: `tests/api/category.test.js`.
+
+| ID | Durchführung | Soll | Ist am 24.10. |
 |---|---|---|---|
-| TC-N01 | `docker compose --env-file ../../.env up -d --build` in jedem der vier Service-Ordner | jeder Service startet allein mit eigener DB, `GET :808x/health` → 200 | ✅ alle vier |
-| TC-N02 | Gateway einzeln mit `*_UPSTREAM_*` auf die vier Services, dann alle API-Tests | 35/35 bestanden | ✅ |
-| TC-N03 | Kubernetes-Manifeste anwenden (`deploy/k8s`), dann alle API-Tests gegen NodePort 30080 | alle Pods `Running`, 35/35 bestanden | ✅ |
+| TC-K01 | Kategorie mit `#FF8800` anlegen, einzeln und als Liste lesen | 201; Farbe `#ff8800`; Kategorie vorhanden | Bestanden |
+| TC-K02 | Ohne Farbe anlegen; Leerzeichenname und ungültige Farbe senden | Standardblau; ungültige Eingaben 400 | Bestanden |
+| TC-K03 | „Arbeit“, dann „arbeit“ anlegen; erste löschen und erneut anlegen | 409 vor, 201 nach Soft-Delete | Bestanden |
+| TC-K04 | Name und Farbe ändern | 200 und beide neuen Werte | Bestanden |
+| TC-K05 | Löschen, normale Liste und Einzelabruf prüfen; gelöschte einblenden | 204; leer/404; gelöschter Datensatz sichtbar | Bestanden |
+| TC-K06 | Zweiter Benutzer liest, ändert und löscht fremde Kategorie | Je 404; fremde Liste leer; Original unverändert | Bestanden |
+| TC-K07 | Liste ohne Token und Einzelabruf mit ungültiger ID | 401 beziehungsweise 404 | Bestanden |
 
-## 5. Manuelle Tests Frontend (F09, F10, N07)
+Die gemeinsamen Tests TC-T05–T07 prüfen zusätzlich Kategoriezuordnung, Ablehnung fremder/gelöschter Kategorien und den Erhalt eines TODOs nach Kategorie-Soft-Delete. TC-S04 prüft die Statistik nach Kategorie. TC-E01 prüft den gesamten Ablauf von Registrierung bis Statistik und Abmeldung. Alle diese Fälle sind im 35/35-Lauf enthalten.
 
-Durchgeführt im Browser (Chrome) mit 1280 × 860 (Desktop) und 390 × 844 (Smartphone).
+### JWT Regressionstests
 
-| ID | Ablauf | Erwartet | Desktop | Mobile |
-|---|---|---|---|---|
-| TC-M01 | Registrieren | danach direkt angemeldet auf «TODOs» | ✅ | ✅ |
-| TC-M02 | Falsches Passwort beim Login | rote Meldung «E-Mail oder Passwort ist falsch» | ✅ | ✅ |
-| TC-M03 | Kategorien «Schule», «Haushalt» mit Farbe anlegen, umbenennen | erscheinen sofort, Farbe sichtbar | ✅ | ✅ |
-| TC-M04 | TODOs mit Kategorie + Priorität anlegen, Status über Auswahl ändern | Badges, erledigte durchgestrichen und unten | ✅ | ✅ |
-| TC-M05 | Filter und Suche | Liste aktualisiert sich (Suche nach 300 ms Pause) | ✅ | ✅ |
-| TC-M06 | Statistik öffnen | Kacheln + Tabelle pro Kategorie, ohne erledigte «Keine Daten» | ✅ | ✅ |
-| TC-M07 | Beide Kategorien-Instanzen stoppen, TODO-Seite öffnen | gelber Hinweis, TODOs sichtbar und bearbeitbar | ✅ | ✅ |
-| TC-M08 | Abmelden, danach `#/todos` aufrufen | Umleitung auf «Anmelden» | ✅ | ✅ |
+Datei: `services/category-service/test/auth.test.js`. Jeder ungültige Fall erwartet HTTP 401 aus der Middleware und keine übernommene Benutzeridentität. Das gültige Token muss die signierte Identität übernehmen.
 
-Screenshots: `docs/img/` (siehe Dokumentation, Anhang).
+| Fall | Erwartung | Ergebnis |
+|---|---|---|
+| Gültiges Token | Signierte UUID und Token werden übernommen | Bestanden |
+| Ungültige oder fehlende Benutzer-ID | Ablehnung | 2/2 bestanden |
+| Fehlende Ablaufzeit oder abgelaufenes Token | Ablehnung | 2/2 bestanden |
+| Falscher Aussteller, Algorithmus oder Signatur | Ablehnung | 3/3 bestanden |
+| Fehlendes oder beschädigtes Token | Ablehnung | 2/2 bestanden |
 
-## 6. Ausfalltests Docker Compose (N06): `scripts/ha-test.sh`
+```bash
+cd services/category-service
+npm ci
+npm test
+cd ../..
+BASE_URL=http://10.4.31.11:30080 node --test \
+  tests/api/category.test.js tests/api/flow.test.js
+```
 
-Verantwortlich: Naima + Zachary. Das Skript legt einen Testbenutzer an, führt die Tests aus, startet alles wieder und gibt die Tabelle aus.
+Die JWT-Suite erreichte 10/10, die gesamte API-Suite 35/35 erfolgreiche Tests. Die sieben Kategorie-API-Fälle sind Teil dieser 35 und dürfen nicht nochmals zur Gesamtsumme addiert werden. Ein Abdeckungsbericht für alle Serverdateien wurde noch nicht erstellt; die Testanzahl allein ist kein Nachweis einer bestimmten Codeabdeckung.
 
-| Test | Vorgehen | Ergebnis (Durchlauf 3 von 3) | Status |
-|---|---|---|---|
-| HA-01 | 20× `GET /api/todos` | Antworten verteilt auf 2 Instanzen (10× / 10×) | ✅ |
-| HA-02 | `docker stop todo-service-1`, dann 20× GET + 1× POST | 20/20 GET erfolgreich, POST → 201 | ✅ |
-| HA-03 | Node-Prozess in `category-service-2` mit `kill -9` beenden | Docker startet neu (RestartCount 0 → 1), wieder gesund nach 1.3 s | ✅ |
-| HA-04 | beide `category-service` stoppen | `GET /todos` → 200; TODO mit Kategorie → 503 mit Meldung «Der Kategorien-Service ist gerade nicht erreichbar …»; `/stats` → 200 mit `categoriesAvailable:false` | ✅ |
-| HA-05 | beide `todo-service` stoppen, `GET /stats` | 503 nach 2022 ms: «Der TODO-Service ist gerade nicht erreichbar, bitte später erneut versuchen» | ✅ |
-| HA-06 | `docker restart db` | 1 TODO vorher, 1 nachher; API sofort wieder bereit | ✅ |
+### Vier einzelne VM Ausfälle
 
-Alle drei Durchläufe: 6/6. Die Zeiten für HA-03 lagen zwischen 1.1 und 1.5 s.
+Vor jedem Versuch mussten alle vier Knoten und alle drei PostgreSQL-Instanzen gesund sein. Pro Versuch wurde genau eine VM für ungefähr zwei Minuten per Netzwerkregel isoliert. Ein vorher eingerichteter systemd-Timer stellte die Verbindung automatisch wieder her. Der Testclient blieb auf einer erreichbaren Seite des Netzes.
 
-## 7. Ausfalltests Kubernetes (N06): `scripts/k8s-ha-test.sh`
+Das Skript legt ein eigenes Testkonto, eine Basiskategorie und ein TODO an. Es prüft zunächst alle vier Einstiege. Während der Störung versucht es über eine andere VM wiederholt, eine Kategorie zu erstellen, das bestehende TODO zu lesen und die Statistik abzurufen. Nach der Rückkehr vergleicht es die bestätigten Kategorie-IDs über alle vier Einstiege und versucht die Testdaten zu bereinigen.
 
-| Test | Vorgehen | Ergebnis | Status |
-|---|---|---|---|
-| K8S-01 | `kubectl delete pod <todo-service-pod>`, gleichzeitig 20 Anfragen | 20/20 erfolgreich, wieder 2/2 Pods bereit nach 5 s | ✅ |
-| K8S-02 | `kill -9` auf den Node-Prozess im Pod | Container neu gestartet (Restarts +1), wieder bereit nach 3 s | ✅ |
-| K8S-03 | Datenbank-Pod löschen | 1 TODO vorher, 1 nachher (PersistentVolume); API nach 2 s wieder bereit | ✅ |
+| Getrennte VM | Dauerhaft vollständige Abläufe ab Testsekunde | Vollständige Abläufe während Isolation | Bestätigte Kategorien danach |
+|---|---:|---:|---:|
+| Naima .11 | 48,8 s | 25 | 47/47 |
+| Dexter .13 | 73,5 s | 16 | 35/35 |
+| Leona .16 | 85,4 s | 12 | 30/30 |
+| Zachary .17 | 26,4 s | 34 | 55/55 |
 
-Beobachtung: Wird derselbe Container mehrmals kurz hintereinander beendet, wartet Kubernetes immer länger mit dem Neustart (CrashLoopBackOff, gemessen bis 33 s).
-Das ist gewollt: So belastet ein dauernd abstürzender Container das System nicht.
+Die Isolation beginnt ungefähr drei Sekunden nach Teststart und endet ungefähr bei Sekunde 120. Die zweite Spalte misst ab Teststart, nicht exakt ab Ausfallbeginn. Periodische Messungen und Request-Timeouts begrenzen die Genauigkeit. Insgesamt waren alle 167 bestätigten Testkategorien nach den vier Versuchen vorhanden; die längste beobachtete Fehlerphase betrug ungefähr 81 Sekunden.
 
-## 8. Unit-Tests
+Die spätere Wiedereingliederung einer zurückkehrenden Datenbankkopie konnte länger dauern als die Wiederherstellung der Anwendung. Vor dem nächsten Versuch wurde deshalb erneut der gesunde Gesamtzustand abgewartet.
 
-| Service | Datei | Testfälle | Ergebnis |
-|---|---|---|---|
-| user-service (Leona) | `test/auth.test.js` | gültiges Token → userId aus `sub`; fehlendes, falsch signiertes, abgelaufenes Token → 401 | ✅ 4/4 |
-| todo-service (Dexter) | `test/status.test.js` | erledigen setzt `completedAt`; wieder öffnen setzt zurück; erledigt bleibt erledigt | ✅ 3/3 |
-| stats-service (Zachary) | `test/stats.test.js` | Zählung F07; Ø aus 1 h + 3 h = 2 h; keine Daten → `null`; wieder geöffnete zählen nicht; pro Kategorie; Kategorien-Service weg; letzte 7 Tage | ✅ 7/7 |
+Die Skripte sind `scripts/cluster-failure-test.cjs` und `scripts/isolate-vm-test.sh`. Für die Wiederholung benötigt der Testclient Node.js 22+, Zugriff auf alle Einstiege und vorbereiteten SSH-Schlüsselzugang als `ubuntu`. Das Isolationsskript muss auf der Ziel-VM unter dem im Testskript genannten Pfad bereitliegen. Ein Beispielaufruf ist `node scripts/cluster-failure-test.cjs 11`. Der Test ist eine bewusste Betriebsunterbrechung und wird mit dem Team abgestimmt.
 
-## 9. Gefundene und behobene Fehler
+Diese Versuche simulieren vollständige IPv4-Netzisolation der Ziel-VM. Sie sind kein Nachweis eines physischen Stromausfalls, eines gleichzeitigen Ausfalls mehrerer VMs oder einer Wiederherstellung nach Datenträgerverlust.
 
-| # | Gefunden durch | Problem | Behebung |
-|---|---|---|---|
-| 1 | HA-02 | 1 von 20 Anfragen ging verloren, wenn eine Instanz stoppte (nginx kannte über DNS nur noch eine Instanz) | pro Service zwei feste Upstream-Einträge |
-| 2 | HA-04 | Statistik antwortete mit 500, wenn der Kategorien-Service fehlte (Timeout brach das spätere Lesen der TODO-Antwort ab) | Antwort innerhalb des Timeouts vollständig lesen |
-| 3 | HA-05 | Fehlermeldung kam erst nach 4 s statt 2 s (nginx wiederholte die 503 bei der zweiten Instanz) | `proxy_next_upstream` nur noch bei Verbindungsfehler/Timeout |
-| 4 | HA-06 | Nach Ausfall beider Instanzen blieb ein Service bis zu 10 s gesperrt | `fail_timeout` von 10 s auf 3 s |
-| 5 | HA-03 | `docker kill` startete den Container nicht neu (gilt als manueller Stopp) | Absturz realistisch simulieren: Prozess im Container beenden; `tini` als PID 1 |
-| 6 | K8S-01 | 1 von 20 Anfragen ging beim Löschen eines Pods verloren | `preStop: sleep 3` |
-| 7 | TC-E03 | `X-Request-Id` stand doppelt in der Antwort | nginx entfernt die Kopie des Services |
-| 8 | Manueller Test | Navigation war vor dem Login sichtbar (CSS überschrieb `hidden`) | `[hidden] { display: none !important; }` |
+### Browsernachweis und historische Einzeltests
+
+![Kategorienseite während der Netztrennung von Naimas VM](Naima-Browser-Ausfalltest.png)
+
+*Abbildung 4: Während der Isolation von .11 wurde über die bereits geladene Oberfläche eine Kategorie erstellt und angezeigt. Die erste Statistik-Anfrage scheiterte noch; ein erneuter Aufruf funktionierte während der weiter bestehenden Isolation.*
+
+Vor der Umstellung auf den Cluster wurden am separaten Kategorien-Compose-Stack sechs Prüfungen erfolgreich ausgeführt. Darunter waren ein Prozessabsturz mit Wiederanlauf nach ungefähr 0,98 Sekunden und ein DB-Container-Neustart mit erhaltenen Daten nach ungefähr 0,76 Sekunden. Diese Messungen betreffen den lokalen Einzelstack und sind nicht die Wiederherstellungszeiten eines VM-Ausfalls im Cluster.
+
+### Gefundene Fehler und verbleibende Prüfungen
+
+| Befund | Korrektur oder Status |
+|---|---|
+| Signierte Tokens ohne Ablaufzeit oder gültige Benutzer-ID wurden nicht ausreichend ausgeschlossen | Kategorien-Middleware ergänzt; zehn Regressionstests bestanden |
+| Verwundbare transitive `body-parser`-Version im Kategorienservice | Lockfile aktualisiert; anschliessender Audit meldete keine Befunde im Kategorienservice |
+| Lokale Vollstacks belegten keinen gemeinsamen VM-Betrieb | Gemeinsamer Cluster eingerichtet und über mehrere Einstiege getestet |
+| Steuerungsebene erholte sich nach Netztrennung teilweise nicht | dqlite-Korrektur, versionsbezogene Einstellungen und koordinierter Watchdog eingesetzt |
+| Kein gemessener Abdeckungsbericht | Offen; Serverdateien statt nur Testclient messen |
+| Grenzwerte und konkurrierende Änderungen nicht umfassend geprüft | Zusätzliche automatisierte Fälle vorgesehen |
+
+Für die ergänzende Testing-Abgabe sind folgende Prüfungen noch offen: Namen mit 1, 40 und 41 Zeichen; falsche Datentypen; PATCH nur eines Feldes; Namenskonflikt beim Umbenennen; beschädigtes JSON; endgültiges Löschen ohne Einfluss auf einen zweiten Benutzer; konkurrierende Änderungen und Löschung; gezielte Readiness-Prüfung bei DB-Ausfall; vollständiger Desktop-/Mobil-Ablauf der Kategorienseite. Diese Fälle werden nicht als bereits bestanden ausgegeben.
+
+
+## Gemeinsame offene Fehlerfälle
+
+Benutzer-/TODO-JWT erzwingen exp und gültiges UUID-sub noch nicht gleich streng. Kontolöschung ist nicht atomar: erfolgreiche Teillöschungen werden bei späterem Fehler nicht zurückgerollt. TC-U10 prüft den Normalfall. Physischer Stromausfall, Mehrfachausfall, kompletter Neuaufbau und Backup-Restore sind nicht als bestanden nachgewiesen.
+
+[Rohbelege 24.10.](nachweise-2026-10-24.txt) · [Cluster 24.10.](cluster-2026-10-24.txt) · [Einzelstack](kategorien-einzelservice.txt)

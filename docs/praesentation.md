@@ -1,84 +1,46 @@
-# Präsentation und Demo: Ablauf
+# Gemeinsame Präsentation und Demo
 
-> **TL;DR:** ~20 Minuten, vier Teile. Jede Person zeigt **ihren Service live** im Browser und erklärt **eine** Sache im Code.
-> Der Höhepunkt ist der **Ausfalltest live** (Instanz stoppen, alles läuft weiter). Für die Demo gibt es 6 Punkte, wenn **keine Pannen** passieren.
-> Deshalb: vorher proben, Demo-Daten laden, Plan B bereithalten.
+Vorgesehener Ablauf für 02.11.2026; keine Behauptung, dass die Teamdemo schon geprobt wurde. Aktiver Cluster auf Port 30080; nicht die alten Compose-Demo-Befehle ausführen. [Ausführlicher Bedien- und Sprechzettel](demo-naima.md).
 
-**Termine:** Abgabe Projektarbeit **Mo 26.10.2026** (Code + Dokumentation, via Teams) · **Demo Mo 02.11.2026** (dann auch die freiwillige Testing-Abgabe)
+## Rollen und Ablauf (etwa 20 Minuten)
 
-## 1. Ablauf (≈ 20 min)
+| Zeit | Wer | Vorführen / erklären |
+|---|---|---|
+| 0–2 min | Dexter | Zweck, Verantwortlichkeiten, main als vollständiger Abgabestand |
+| 2–4 min | Leona | Architektur: vier VMs, Service-Adressen, zwei Pods je Service, drei DB-Instanzen |
+| 4–6 min | Leona | Testkonto registrieren, Login, Profil; Tokenprinzip ohne echte Tokens zu veröffentlichen |
+| 6–9 min | Naima | Kategorie/Farbe, Änderung, Duplikat ablehnen; Eingabe- und Besitzprüfung im Code |
+| 9–11 min | Dexter | TODO mit Kategorie, Status/Priorität, Filter; Aufruf von Naimas Prüf-Endpunkt |
+| 11–13 min | Zachary | Statistik, leeres Konto/keine Daten, erledigtes TODO, historische Kategorienamen |
+| 13–14 min | Naima | Soft-Delete: vorhandenes TODO bleibt; zweiter Benutzer hat getrennte Daten |
+| 14–18 min | Naima + Zachary | Geprobtes einzelnes Ausfallszenario, Fehlerphase sichtbar erklären, Erfolg während Störung, Rückkehr prüfen |
+| 18–20 min | alle | Testnachweise, Grenzen, Fazit und Fragen |
 
-| Zeit | Wer | Was | Zeigen |
-|---:|---|---|---|
-| 0:00 | **Dexter** | Einstieg: Was ist die App, wer hat was gebaut | README-Tabelle «Komponente → Person» |
-| 1:30 | **Leona** | Architektur: Browser → nginx → 4 Services × 2 → je eigene DB; JWT als roter Faden | Diagramm aus `docs/architektur.md` |
-| 4:00 | **Leona** | Benutzer-Service: registrieren, falsches Passwort, Token auf jwt.io, Hash in der DB | Browser + Terminal |
-| 7:00 | **Naima** | Kategorien-Service: anlegen mit Farbe, Duplikat, Soft-Delete (TODO zeigt sie durchgestrichen) | Browser |
-| 9:30 | **Dexter** | TODO-Service: anlegen mit Kategorie/Priorität, Status → erledigt, Filter/Suche; Prüfung beim Kategorien-Service im Code | Browser + `app.js` `checkCategory` |
-| 12:30 | **Zachary** | Statistik: Kacheln, pro Kategorie, «Keine Daten»; Unit-Tests live (`npm test`) | Browser + Terminal |
-| 15:00 | **Naima + Zachary** | **Hochverfügbarkeit live:** 1) Lastverteilung `X-Instance` 2) `docker stop todo-service-1` → App läuft 3) Absturz → Neustart in ~1.5 s 4) `./scripts/ha-test.sh` Ergebnis-Tabelle | Terminal + Browser |
-| 18:30 | **Dexter** | Fazit: was gelernt (Fehler aus Ausfalltests), Grenzen (DB = Single Point of Failure), Ausblick | `docs/dokumentation.md` Kap. 5.4, 8 |
-| 20:00 | alle | Fragen | – |
+## Vorbereiten und Gesundheitszustand zeigen
 
-**Faustregel:** Wer redet, bedient auch. Die andere Person sagt nur, was als Nächstes kommt.
-
-## 2. Vorbereitung (am Vortag und 15 min vorher)
+Schulnetz/VPN, eigenes Testkonto, zweites privates Browserfenster, lokale Nachweise, SSH-Terminal. Alle Einstiege bereithalten: http://10.4.31.11:30080 und .13/.16/.17. Keine persönlichen Daten oder Secrets präsentieren.
 
 ```bash
-# auf der Demo-VM
-cd m321 && git pull && git checkout develop
-docker compose up -d --build
-docker compose ps                      # alle 10 "healthy"?
-./scripts/demo-daten.sh                # Login: demo@example.com / demo12345
-BASE_URL=http://localhost:8080 node --test tests/api/   # oder per Docker, siehe README → alles grün?
+microk8s kubectl get nodes
+microk8s kubectl -n todo-app get deployments
+microk8s kubectl -n todo-app get pods -o wide
+microk8s kubectl -n todo-app get cluster todo-pg
 ```
 
-- [ ] VPN (WireGuard) verbunden, VM erreichbar: `http://<vm-ip>:8080`
-- [ ] Browser: ein Tab angemeldet als Demo-Benutzer, ein privates Fenster für «Registrieren»
-- [ ] Terminal mit grosser Schrift, zwei Fenster: (1) Befehle, (2) `docker compose logs -f gateway`
-- [ ] jwt.io in einem Tab offen
-- [ ] Befehle für den HA-Teil in einer Textdatei bereit zum Kopieren (unten)
+Erwartet: vier Ready-Nodes, fünf Deployments 2/2, DB 3/3. Pod-Platzierung kann wechseln; aktuelle Ausgabe erklären. Kein automatisches Umschalten der Schul-VMs auf einen anderen Stack für die Demo.
 
-## 3. Befehle für den HA-Teil (zum Kopieren)
+## Funktions- und Ausfallnachweis
 
-```bash
-# 1) Lastverteilung: abwechselnd zwei Container-IDs
-for i in 1 2 3 4; do curl -s -D - -o /dev/null http://localhost:8080/api/health/todo | grep -i x-instance; done
+Die API-Suite prüft 35 Fälle über das Gateway; Befehl im [Testprotokoll](testprotokoll.md). Ein Pod-Ersatz zeigt Service-Redundanz, beweist aber keinen ganzen VM-Ausfall. Ein einzelner Kategorie-Pod kann nach Anzeige des aktuellen Namens gezielt entfernt werden; Kubernetes erstellt Ersatz. Währenddessen im Browser arbeiten. Laufende Anfragen können scheitern.
 
-# 2) Eine Instanz fällt aus → im Browser weiterarbeiten
-docker stop todo-service-1
-docker start todo-service-1
+Der vorbereitete VM-Test lautet `node scripts/cluster-failure-test.cjs 11`, von einem Testclient ausserhalb .11. Voraussetzungen: Node.js 22+, SSH-Schlüsselzugang als ubuntu, installiertes Isolationsskript, automatische Rücknahme, alle Nodes und Datenbankinstanzen vorher gesund. Nur eine VM gleichzeitig, mit dem Team abgestimmt. Ungefähr zwei Minuten Isolation, mehrere Minuten Gesamtlauf. Vorher proben; keine unvorbereitete Abschaltung während der benoteten Demo.
 
-# 3) Absturz simulieren → Docker startet neu
-docker exec category-service-2 sh -c 'kill -9 $(pgrep -f "node src/server.js")'
-docker ps --filter name=category-service-2       # "Up 2 seconds"
+`VM=DOWN ... write/read/stats=OK` zeigt Erfolg während der Störung. Die PASS-Zeile prüft auch bestätigte Daten an allen Einstiegen. Anschliessend vier Ready-Nodes, App-Replikate und drei bereite DB-Instanzen kontrollieren. Die historische längste Fehlerphase betrug etwa 81 s; nicht durch Compose-Neustartzeiten ersetzen und keine Null-Unterbrechung behaupten.
 
-# 4) Teilausfall: Kategorien ganz weg → TODOs gehen weiter (gelber Hinweis)
-docker stop category-service-1 category-service-2
-docker start category-service-1 category-service-2
+## Plan bei Problemen
 
-# 5) alles automatisch mit Tabelle
-./scripts/ha-test.sh
-```
-
-## 4. Plan B (falls etwas schiefgeht)
-
-| Problem | Reaktion |
-|---|---|
-| VPN / VM nicht erreichbar | Lokal auf dem Laptop mit Docker Desktop: `docker compose up -d --build` (2 min). Vorher einmal ausprobieren! |
-| Ein Container ist nicht `healthy` | `docker compose logs <name> --tail 20` zeigen und erklären. Meist DB noch nicht bereit: 10 s warten, `docker compose up -d` |
-| Login geht nicht nach Neustart mit neuer `.env` | Token im Browser ist alt → abmelden/neu anmelden (anderes `JWT_SECRET` = alte Tokens ungültig, das ist korrekt so) |
-| Demo hängt | Screenshots in `docs/img/` und Testprotokoll zeigen. Ruhig erklären, was passiert ist. Erklärte Pannen kosten weniger Punkte |
-
-## 5. Wer kann welche Fragen beantworten
-
-| Thema | Erste Ansprechperson |
-|---|---|
-| JWT, Passwörter, Abmelden, Konto löschen | Leona |
-| Reverse Proxy, Lastverteilung, `upstream`, TODO-Logik, Fremdschlüssel | Dexter |
-| Soft-Delete, Prüf-Endpunkt, partieller Index, Ausfalltests | Naima |
-| Statistik-Berechnung, Timeouts, Unit-Tests, Kubernetes-Tests, Korrelations-ID | Zachary |
-| Kubernetes-Manifeste (Probes, Replicas, Secret) | Zachary + Naima |
-| LernMAAS, Installation | alle (jede Person hat es auf der eigenen VM gestartet) |
-
-Die typischen Fragen mit Antworten stehen in der Erklär-Doku jeder Person (Abschnitt «Fragen der Lehrperson»).
+- Schulnetz/VPN prüfen; bei ausgefallener Einstiegsadresse eine andere VM-URL öffnen. Eine bereits geladene Seite kann ihre API-Adresse wechseln, Erstaufruf/Reload einer toten URL nicht.
+- Fehlermeldung zeigen, Status/Logs prüfen; keine wiederholten unklaren Schreibvorgänge blind auslösen.
+- Bei noch ungesundem Cluster keinen weiteren Ausfalltest starten; automatische Rücknahme abwarten und Zustand prüfen.
+- Falls Live-Netz nicht verfügbar: lokale Doku, Screenshot und Rohprotokolle zeigen und klar als frühere Nachweise bezeichnen.
+- Bekannte Grenzen nennen: JWT-Vertragsprüfung bei Benutzer/TODO, nichtatomare Kontolöschung, ausstehende Coverage/GUI-/Restore-Prüfungen.

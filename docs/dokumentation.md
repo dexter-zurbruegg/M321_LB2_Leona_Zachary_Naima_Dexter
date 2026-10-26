@@ -1,13 +1,15 @@
 # Verteilte TODO-Applikation: Dokumentation LB2
 
+![Titelbild: verteilte TODO-Anwendung](Naima-Titelbild.png)
+
 | | |
 |---|---|
 | **Modul** | M321 Verteilte Systeme programmieren, TBZ, Klasse AP23a |
 | **Gruppe** | Leona · Zachary · Naima · Dexter |
 | **Repository** | https://github.com/dexter-zurbruegg/M321_LB2_Leona_Zachary_Naima_Dexter |
-| **Branch mit dem finalen Stand** | `develop` |
+| **Branch mit dem finalen Stand** | `main` (vollständiger Stand aus `ha-cluster-repair`) |
 | **Abgabe** | Projektarbeit 26.10.2026 · Testing und Demo 02.11.2026 |
-| **Version** | 1.0 |
+| **Version** | 2.0 · Clusterstand, aktualisiert 26.10.2026 |
 
 ---
 
@@ -42,10 +44,10 @@ Wir haben das Projekt nach dem Vorgehen aus dem Auftrag LB2 in sechs Phasen umge
 | 3. Pflichtfunktionen | Jede Person baut ihren Service und die passende Seite im Frontend, mit Tests. |
 | 4. Integration | Reverse Proxy als einziger Einstieg, Service-Adressen per Umgebungsvariablen, ganzer Ablauf F09 getestet. |
 | 5. HA und Ausfalltests | Zwei Instanzen pro Service + automatischer Neustart; Ausfalltests als Skript, Ergebnisse protokolliert. |
-| 6. Abschluss | Fehler aus den Ausfalltests behoben (siehe 5.4), Dokumentation, Demo geprobt. |
+| 6. Abschluss | Fehler aus den Ausfalltests behoben (siehe Kapitel 5), Dokumentation konsolidiert; gemeinsame Demo noch zu proben. |
 
 **Zusammenarbeit mit Git:** Jede Person arbeitet auf ihrem Branch `Feature-<Name>`, gemerged wird nach `develop`.
-`develop` enthält den finalen Stand, `main` bleibt für die Abgabe.
+Der Clusterstand entstand auf `ha-cluster-repair` (App-Bezug `f74f737`) und wird vollständig nach `main` übernommen. `main` ist der Abgabezweig; `develop` kann älter sein. Reine Doku-Commits verändern den laufenden App-Code nicht.
 Schnittstellenänderungen werden vorher mit allen abgestimmt, die die Schnittstelle benutzen (Tabelle in [schnittstellen.md §1.4](schnittstellen.md#14-aufrufe-zwischen-services-timeouts-ausfälle)).
 
 **Technologieentscheid:** Der Auftrag erlaubt pro Komponente eine eigene Technologie. Wir haben uns trotzdem für **einen** Stack entschieden (Node.js 22 + Express 5, PostgreSQL 17, nginx).
@@ -68,8 +70,8 @@ Die Testfall-IDs verweisen auf das [Testprotokoll](testprotokoll.md).
 | F06 | TODO einer Kategorie zuordnen (max. 1) | Muss | TODO + Kategorien | ✅ | TC-T05–T07 |
 | F07 | Anzahl offener und erledigter TODOs | Muss | Statistik | ✅ | TC-S01, S02 |
 | F08 | Ø Zeit Erstellung → Erledigung, «Keine Daten» bei 0 | Muss | Statistik | ✅ | TC-S01, S03, Unit-Tests |
-| F09 | Eine Weboberfläche verbindet alle vier Services | Muss | Frontend | ✅ | TC-E01, Demo |
-| F10 | Verständliche Fehler- und Ladezustände | Muss | alle | ✅ | TC-U03, HA-04, HA-05, Screenshots |
+| F09 | Eine Weboberfläche verbindet alle vier Services | Muss | Frontend | ✅ | TC-E01; Demo vorgesehen |
+| F10 | Verständliche Fehler- und Ladezustände | Muss | alle | ✅ | TC-U03; Browsernachweis; vollständige GUI-Prüfung offen |
 | Z1 | Filter nach Status und Kategorie | Kann | TODO | ✅ | TC-T08 |
 | Z2 | Suche nach TODO-Titel | Kann | TODO | ✅ | TC-T08 |
 | Z3 | Prioritäten niedrig / mittel / hoch | Kann | TODO | ✅ | TC-T01, T03, T08 |
@@ -82,91 +84,61 @@ Bewusst **nicht** umgesetzt (wie in der Planung): E-Mail-Erinnerungen, Teamfreig
 
 | ID | Anforderung | Prio | Umsetzung | Nachweis |
 |---|---|---|---|---|
-| N01 | 4 Services getrennt startbar, APIs dokumentiert | Muss | eigene `docker-compose.yml` pro Service, [schnittstellen.md](schnittstellen.md) | Einzelstart getestet (Testprotokoll §4) |
+| N01 | 4 Services getrennt startbar, APIs dokumentiert | Muss | eigene `docker-compose.yml` pro Service, [schnittstellen.md](schnittstellen.md) | Compose-Dateien vorhanden; Kategorien-Einzelstart belegt |
 | N02 | Nur eigene Daten (serverseitig) | Muss | `userId` nur aus dem geprüften JWT, jede SQL-Abfrage mit `user_id`, fremd = 404 | TC-T09, K06, S05 |
 | N03 | Passwörter gehasht, keine Secrets im Repo | Muss | bcrypt (Kostenfaktor 10), `.env` in `.gitignore`, `init-env.sh` erzeugt Zufallswerte | TC-U01, Code-Review |
-| N04 | Daten überleben Neustart | Muss | PostgreSQL mit Docker-Volume bzw. PersistentVolume | HA-06, K8S-03 |
-| N05 | Läuft auf LernMAAS | Muss | Docker Compose oder microk8s auf der M321-VM | Kapitel 6 |
-| N06 | 2 HA-Massnahmen + Ausfalltests | Muss | 2 Instanzen + Loadbalancer, automatischer Neustart | HA-01–06, K8S-01–03 |
-| N07 | Desktop + Mobile | Muss | responsives CSS (ab 640 px gestapelt) | Screenshots Anhang |
+| N04 | Daten überleben Neustart | Muss | Drei replizierte PostgreSQL-Instanzen mit lokalen PersistentVolumes | Vier VM-Isolationen: bestätigte Daten erhalten |
+| N05 | Läuft auf LernMAAS | Muss | MicroK8s auf vier LernMAAS-VMs | Kapitel 6 |
+| N06 | 2 HA-Massnahmen + Ausfalltests | Muss | Getrennte App-Replikate, automatischer Ersatz und DB-Replikation | VM-11/13/16/17 vom 24.10. |
+| N07 | Desktop + Mobile | Muss | responsives CSS (ab 640 px gestapelt) | Layout vorhanden; vollständiger aktueller Desktop-/Mobiltest offen |
 | N08 | Doku für Installation, Konfiguration, APIs, Tests | Muss | README, schnittstellen.md, testprotokoll.md | – |
+
+Die Statusangaben beziehen sich auf die genannten normalen API-Fälle. Sie bedeuten keine vollständige Abdeckung aller Fehlerfälle: Kontolöschung bei Teilfehlern, JWT-Vertragslücken und umfassende GUI-Prüfungen bleiben offen.
 
 ## 3. Verteiltes System im Überblick
 
+
+Stand: 26.10.2026. Aktive Betriebsart: MicroK8s v1.35.6, Namespace `todo-app`.
+
+| Person | VM / Knoten | Einstieg |
+|---|---|---|
+| Naima | 10.4.31.11 / m321-11-ap23a | http://10.4.31.11:30080 |
+| Dexter | 10.4.31.13 / m321-13-ap23a | http://10.4.31.13:30080 |
+| Leona | 10.4.31.16 / m321-16-ap23a | http://10.4.31.16:30080 |
+| Zachary | 10.4.31.17 / m321-17-ap23a | http://10.4.31.17:30080 |
+
 ```mermaid
 flowchart TB
-    B["Browser: Frontend (HTML/CSS/JS)"] -->|"HTTP :8080"| G["Gateway: nginx<br/>Reverse Proxy + Loadbalancer + Frontend"]
-    subgraph US["Benutzer-Service · Leona"]
-        direction LR
-        U1[user-service-1] ~~~ U2[user-service-2]
-    end
-    subgraph TS["TODO-Service · Dexter"]
-        direction LR
-        T1[todo-service-1] ~~~ T2[todo-service-2]
-    end
-    subgraph KS["Kategorien-Service · Naima"]
-        direction LR
-        K1[category-service-1] ~~~ K2[category-service-2]
-    end
-    subgraph SS["Statistik-Service · Zachary"]
-        direction LR
-        S1[stats-service-1] ~~~ S2[stats-service-2]
-    end
-    G -->|"/api/users, /api/auth"| US
-    G -->|"/api/todos"| TS
-    G -->|"/api/categories"| KS
-    G -->|"/api/stats"| SS
-    TS -.->|"Kategorie prüfen"| KS
-    SS -.->|"TODOs lesen"| TS
-    SS -.->|"Kategorienamen"| KS
-    US -.->|"Konto löschen"| TS
-    US --> DBU[("DB users")]
-    TS --> DBT[("DB todos")]
-    KS --> DBK[("DB categories")]
+    B[Browser] --> E["Vier NodePort-Einstiege :30080"]
+    E --> G["Gateway / Frontend: 2 Pods"]
+    G --> U["Benutzer: 2 Pods / Leona"]
+    G --> T["TODO: 2 Pods / Dexter"]
+    G --> K["Kategorien: 2 Pods / Naima"]
+    G --> S["Statistik: 2 Pods / Zachary"]
+    T -->|"Kategorie prüfen + JWT"| K
+    S -->|"Aufgaben lesen + JWT"| T
+    S -->|"Kategorienamen + JWT"| K
+    U -->|"Kontodaten bereinigen"| T
+    U -->|"Kontodaten bereinigen"| K
+    U --> DU[(users)]
+    T --> DT[(todos)]
+    K --> DK[(categories)]
+    DU --> P["todo-pg-rw: PostgreSQL-Primärinstanz"]
+    DT --> P
+    DK --> P
+    P -->|"Replikation: ANY 1 synchron"| R["2 Standbys auf anderen VMs"]
 ```
 
-Durchgezogene Pfeile: Anfragen über den Proxy bzw. Zugriff auf die eigene Datenbank. Gestrichelt: Aufrufe zwischen Services über deren API (immer mit dem JWT des Benutzers).
-Die drei Datenbanken liegen in **einer** PostgreSQL-Instanz, jede mit eigenem DB-Benutzer. Beim Konto löschen ruft der Benutzer-Service auch den Kategorien-Service auf.
+Die Datenbanksymbole sind drei **logische Datenbanken** innerhalb desselben PostgreSQL-Clusters. Jede der drei PostgreSQL-Instanzen hält eine Kopie dieses Datenbankverbunds. Statistik hat keine eigene Datenbank.
 
-**So hängt alles zusammen:**
 
-- Der **Browser** spricht nur mit dem **Gateway** (Port 8080). Dieses liefert das Frontend aus und leitet `/api/...` an den richtigen Service weiter. Es gibt also nur eine Adresse und kein CORS-Problem.
-- Jeder Backend-Service läuft **zweimal**. nginx verteilt die Anfragen abwechselnd (Round Robin) und überspringt eine ausgefallene Instanz.
-- Jeder Service besitzt **seine eigenen Daten** in einer eigenen Datenbank mit eigenem DB-Benutzer. Kein Service liest die Datenbank eines anderen, alles läuft über die APIs (gestrichelte Pfeile).
-- **Anmeldung:** Der Benutzer-Service stellt beim Login ein **JWT** aus. Das Frontend schickt es bei jedem Aufruf mit. Jeder Service prüft es selbst (gemeinsames Secret) und nimmt die Benutzer-ID daraus.
-- **Statistik** hat keine eigene Datenbank. Sie holt bei jeder Anfrage die TODOs (und Kategorienamen) über die APIs und rechnet.
+Die interne Kommunikation verwendet Kubernetes-Service-Namen, beispielsweise `http://category-service:3000`. Beim TODO-Anlegen prüft Dexter `GET /categories/{id}` mit dem Benutzer-JWT: 200 erlaubt, 404 führt zu 422, fehlende Erreichbarkeit zu 503. Prüfen und Speichern über zwei Services sind keine atomare Transaktion; konkurrierendes Löschen ist noch nicht umfassend getestet.
 
-**Beispielablauf: TODO mit Kategorie erstellen** (zeigt das Zusammenspiel von drei Komponenten)
-
-```mermaid
-sequenceDiagram
-    participant F as Frontend
-    participant G as nginx
-    participant T as todo-service
-    participant K as category-service
-    participant DB as DB todos
-    F->>G: POST /api/todos {title, categoryId} + JWT
-    G->>T: POST /todos (Instanz 1 oder 2)
-    T->>T: JWT prüfen -> userId
-    T->>K: GET /categories/{id} + JWT (Timeout 2 s)
-    alt Kategorie gehört dem Benutzer und ist aktiv
-        K-->>T: 200
-        T->>DB: INSERT todo
-        T-->>F: 201 TODO
-    else fremd oder gelöscht
-        K-->>T: 404
-        T-->>F: 422 "Diese Kategorie existiert nicht oder wurde gelöscht"
-    else Kategorien-Service nicht erreichbar
-        T-->>F: 503 "Der Kategorien-Service ist gerade nicht erreichbar ..."
-    end
-```
-
-**Gemeinsame Regeln** (Details in [schnittstellen.md](schnittstellen.md)): JSON über HTTP, UUIDs, Zeiten in ISO-8601, einheitliches Fehlerformat `{ "error": { "code", "message" } }`,
-`/health` pro Service, Timeout 2 s plus ein zweiter Versuch bei Aufrufen zwischen Services, Korrelations-ID `X-Request-Id` in allen Logs.
+Zachary liest TODOs und Kategorienamen über die APIs. `includeDeleted=true` erhält historische Namen. Leona bereinigt bei Kontolöschung TODOs und Kategorien. Datenhaltung, Einstiegswechsel und Grenzen sind in der [Architektur](architektur.md) erklärt.
 
 ## 4. Systemkomponenten
 
-> Jede Person ist für ihr Kapitel verantwortlich (Einzelbewertung).
+> Jede Person ist für ihr Kapitel verantwortlich (Einzelbewertung). Der Auftrag verlangt keine separate persönliche Abgabedatei. Die folgenden Kapitel und ihre Vertiefungen sind gemeinsam strukturiert; jede Person prüft ihre fachlichen Aussagen und erläutert ihren tatsächlichen Beitrag.
 
 ### 4.1 Benutzer-Service (Leona)
 
@@ -190,10 +162,10 @@ sequenceDiagram
 
 - **Login:** E-Mail suchen, `bcrypt.compare` mit dem Hash. Bei Erfolg wird ein JWT signiert (`HS256`, `sub` = userId, `iss` = `user-service`, 1 h gültig).
   Bei unbekannter E-Mail und bei falschem Passwort kommt **dieselbe** Meldung. So verrät der Service nicht, welche Konten existieren.
-- **JWT-Format** zuerst festgelegt, weil alle anderen Services davon abhängen. Die Prüfung (`src/auth.js`) ist in jedem Service gleich. Jeder Service hat eine Kopie, damit er allein gebaut werden kann.
+- **JWT-Format** zuerst festgelegt, weil alle anderen Services davon abhängen. Jeder Service besitzt eine eigene Prüfung (`src/auth.js`). Benutzer- und TODO-Service erzwingen erforderliches `exp` und gültiges UUID-`sub` noch nicht gleich streng wie Kategorien und Statistik. Das bleibt offen.
 - **Profil ändern:** Für eine neue E-Mail oder ein neues Passwort braucht es das aktuelle Passwort. So kann jemand mit einem gestohlenen Token das Konto nicht übernehmen.
 - **Konto löschen (Regel 5.3.3):** Der Service ruft zuerst `DELETE /todos` und `DELETE /categories` mit dem Token des Benutzers auf, danach löscht er das Konto.
-  Ist ein Service nicht erreichbar, bricht er mit 503 ab und löscht **nichts**. Lieber noch nicht gelöscht als halb gelöscht.
+  Bei einer fehlgeschlagenen Abhängigkeit kann 503 zurückkommen. Bereits entfernte TODOs werden bei einem späteren Fehler nicht zurückgerollt. Es gibt keine serviceübergreifende Transaktion; Wiederholbarkeit und Teilfehlerbehandlung sind noch abzusichern.
 - **Abmelden:** Das JWT ist zustandslos. Das Frontend löscht es. Grenze: Ein kopiertes Token bleibt bis zum Ablauf (max. 1 h) gültig. Abhilfe wäre eine Sperrliste, die für dieses Projekt zu aufwendig ist.
 
 **Fehlerbehandlung:** 400 (Validierung), 401 (Login/Token), 403 (aktuelles Passwort falsch), 409 (E-Mail vergeben), 503 (beim Löschen ein Service weg).
@@ -263,7 +235,7 @@ sequenceDiagram
   Nach dem Löschen ist der Name wieder frei. Der Konflikt kommt als PostgreSQL-Fehler `23505` und wird zu `409 CATEGORY_EXISTS`.
 - **Keine zweite Zuordnungsliste (Regel 5.3.1):** Welche TODOs zu einer Kategorie gehören, weiss nur der TODO-Service. Damit gibt es keine doppelten Daten, die auseinanderlaufen könnten.
 
-**Tests:** API-Tests TC-K01–K07 (`tests/api/category.test.js`). Die Ausfalltests HA-03/HA-04 betreffen diesen Service.
+**Tests:** API-Tests TC-K01–K07 (`tests/api/category.test.js`). Zusätzlich 10/10 JWT-Regressionstests. Ausführliche Umsetzung, Installation, Grenzen und offene Testfälle: [Naimas Komponentenbeschreibung](naima-umsetzung-tests.md).
 
 ### 4.4 Statistik-Service (Zachary)
 
@@ -281,7 +253,7 @@ Vorteil: Die Zahlen sind immer aktuell, es gibt keine Kopie, die veraltet. Nacht
 - **Durchschnitt (F08, Regel 5.3.4):** Mittelwert von `completedAt − createdAt` in Sekunden über alle **aktuell** erledigten TODOs. Wieder geöffnete zählen nicht.
   Keine erledigten TODOs → `null` → Frontend zeigt «Keine Daten».
 - **Teilausfall:** Fällt der Kategorien-Service aus, liefert der Statistik-Service trotzdem alle Zahlen, nur ohne Kategorienamen (`categoriesAvailable: false`).
-  Fällt der TODO-Service aus, kommt nach spätestens ~2 s eine verständliche 503-Meldung, statt dass die Anfrage hängt.
+  Fällt der TODO-Service aus, kommt nach begrenzten Aufrufversuchen eine verständliche 503-Meldung (2 s pro Versuch; keine pauschale 2-s-Garantie für die gesamte Anfrage), statt dass die Anfrage hängt.
 
 **Tests:** Unit-Tests der Berechnung (`test/stats.test.js`, 7 Fälle mit bekannten Zeitwerten), API-Tests TC-S01–S05 (`tests/api/stats.test.js`).
 
@@ -303,141 +275,90 @@ Vorteil: Die Zahlen sind immer aktuell, es gibt keine Kopie, die veraltet. Nacht
 
 - **Lade- und Fehlerzustände (F10):** Während eines Requests sind Buttons gesperrt und eine Ladeanzeige läuft. Fehler zeigen die `message` des Services («E-Mail oder Passwort ist falsch»).
   Netzwerkfehler zeigen «Server nicht erreichbar …». Fehlen die Kategorien, kommt ein Hinweis, die TODOs bleiben benutzbar.
-- **Sicherheit:** Alle Benutzereingaben werden vor der Anzeige escaped (`esc()`), so ist kein Cross-Site-Scripting möglich. Das Token liegt im `localStorage` und wird beim Abmelden gelöscht.
+- **Sicherheit:** Alle Benutzereingaben werden vor der Anzeige escaped (`esc()`), das reduziert HTML-Injection an diesen Ausgabestellen; eine vollständige XSS-Prüfung ist damit nicht belegt. Das Token liegt im `localStorage` und wird beim Abmelden gelöscht.
+
 
 ### 4.6 Reverse Proxy / Loadbalancer (Dexter + Leona)
 
-**Zweck:** einziger Einstiegspunkt, verteilt die Anfragen auf die Instanzen und weicht bei Ausfall aus.
+nginx liefert das Frontend und leitet `/api/auth`, `/api/users`, `/api/todos`, `/api/categories`, `/api/stats` weiter. Zwei Gateway-Pods stehen hinter NodePort 30080. Im Cluster zeigen die Upstreams auf Kubernetes-Service-Namen; Kubernetes verteilt auf bereite Pods. Feste einzelne Containeradressen gehören zur lokalen Compose-Variante.
 
-**Technik:** nginx 1.28 (offizielles Image), Konfiguration als Template (`gateway/templates/default.conf.template`). Die Adressen kommen aus Umgebungsvariablen.
-Dieselbe Konfiguration läuft damit in Compose, Kubernetes und verteilt über mehrere VMs.
+Der Proxy setzt `X-Request-Id`, Services geben `X-Instance` zurück und protokollieren JSON. Verbindungsfehler/Timeouts erlauben begrenzte Versuche; Service-Antworten mit 503 werden vom Gateway nicht pauschal erneut versandt. Laufende Anfragen können bei einem Ausfall scheitern.
 
-- `/api/<bereich>/…` → Upstream des Services, das Präfix `/api` wird entfernt. `/` → Frontend.
-- Pro Service ein `upstream` mit **zwei Servern**, Round Robin.
-- `proxy_next_upstream error timeout`, `proxy_connect_timeout 1s`: Verbindungsfehler/Timeout → sofort die andere Instanz.
-  `max_fails=1 fail_timeout=3s`: eine ausgefallene Instanz wird 3 s lang übersprungen.
-- **Nicht** wiederholt wird bei einer 503-Antwort eines Services. Sie bedeutet «meine Abhängigkeit fehlt», und die andere Instanz hätte dasselbe Problem (so die Wartezeit halbiert, siehe 5.4).
-- Setzt `X-Request-Id` (Korrelations-ID) und loggt jede Anfrage als JSON mit der Instanz, die geantwortet hat.
-- Fehler des Proxys selbst (Service weg) kommen im gleichen JSON-Fehlerformat wie bei den Services.
+`frontend/runtime-config.js` enthält vier API-Einstiege. Die geladene Oberfläche kann einen gesunden Einstieg wählen; unklare Schreiboperationen werden nicht blind wiederholt. CORS erlaubt die vier Team-Ursprünge. Erster Seitenaufruf oder Reload einer ausgefallenen Adresse benötigt eine Ersatzadresse.
 
 ## 5. Hochverfügbarkeit
 
-### 5.1 Massnahme 1: mehrere Instanzen mit Lastverteilung
+### Massnahmen
 
-- **Docker Compose:** jeder Service als `<service>-1` und `<service>-2`. nginx kennt beide.
-  Zusätzlich hören beide Instanzen auf den gemeinsamen Namen `<service>`, den die Services untereinander verwenden. Docker verteilt dann auf die laufenden Instanzen, mit einem zweiten Versuch im Client.
-- **Kubernetes:** `replicas: 2` pro Deployment. Der Kubernetes-Service verteilt nur auf Pods, deren `readinessProbe` (`/health` inkl. DB) erfolgreich ist.
-  `preStop: sleep 3` sorgt dafür, dass ein Pod erst aus dem Service genommen wird und dann herunterfährt. Mit `podAntiAffinity` landen die Replicas bei mehreren Nodes auf verschiedenen VMs.
-- **Gemeinsamer Datenstand:** Beide Instanzen nutzen dieselbe Datenbank und sind selbst zustandslos (JWT statt Sessions). Deshalb ist egal, welche Instanz antwortet.
+1. Zwei Replikate je App-Service und Gateway mit erforderlicher Anti-Affinität über verschiedene VMs; Readiness nimmt nicht bereite Pods aus dem Verkehr.
+2. Deployments ersetzen fehlende Pods; Liveness erkennt Prozessprobleme. `/health` prüft bei den drei datenhaltenden Services zusätzlich die DB; bei Statistik den Prozess.
+3. CloudNativePG betreibt drei PostgreSQL-Instanzen mit synchroner Bestätigung durch mindestens einen Standby. Bei Primärausfall ist Umschaltung möglich.
+4. Zwei CoreDNS- und zwei Operator-Replikate reduzieren weitere Ausfallpunkte. Korrigierte dqlite-Steuerung und koordinierter Watchdog sichern die beobachteten Wiederherstellungsabläufe ab.
 
-### 5.2 Massnahme 2: automatischer Wiederanlauf
+### Daten und Steuerungsebene
 
-- **Docker:** `restart: always` + `HEALTHCHECK` im Dockerfile. `tini` läuft als PID 1: Stürzt Node ab, endet der Container, und Docker startet ihn sofort neu.
-- **Kubernetes:** `livenessProbe` (`/health/live`): hängt der Prozess, startet Kubernetes den Container neu. Ein gelöschter Pod wird vom Deployment sofort ersetzt.
+Lokale Volumes verwenden `m321-local`, Retain und `/var/snap/microk8s/common/m321-postgres`. Datenkopien liegen im geprüften Stand auf .11, .13 und .16; .17 hat ein Reserve-Volume. Lokale Volumes bleiben an ihre VM gebunden; Ausfallschutz nutzt vorhandene replizierte Kopien auf anderen VMs, kein gemeinsames Netzwerk-Dateisystem.
 
-### 5.3 Ausfalltests (Zusammenfassung, Details im [Testprotokoll](testprotokoll.md))
+Frühe VM-Isolationen deckten hängende dqlite-Watches auf. Eingesetzt wurde v1.8.1 mit Upstream-Patch 365 und ein Watchdog für echte Schreib-/Watch-Prüfungen mit koordinierter Wiederherstellung. Build, Prüfsumme, Hosteinstellungen und Diagnose stehen in der [Betriebsanleitung](betrieb-cluster.md). Die bestandenen Messungen gelten für diese korrigierte Konfiguration.
 
-| Test | Was passiert | Ergebnis |
-|---|---|---|
-| HA-01 | 20 Anfragen | gleichmässig auf beide Instanzen verteilt (10/10) |
-| HA-02 | eine TODO-Instanz gestoppt | 20/20 Anfragen erfolgreich, Erstellen geht weiter |
-| HA-03 | Node-Prozess mit `kill -9` beendet | Docker startet neu, nach ~1.5 s wieder gesund |
-| HA-04 | Kategorien-Service ganz weg | TODOs funktionieren, Zuordnung meldet verständlichen Fehler, Statistik ohne Namen |
-| HA-05 | TODO-Service ganz weg | Statistik meldet nach ~2 s verständlichen Fehler |
-| HA-06 | Datenbank neu gestartet | Daten vorhanden, Services verbinden sich selbst neu |
-| K8S-01 | Pod gelöscht | 20/20 Anfragen erfolgreich, Ersatz-Pod nach ~5 s bereit |
-| K8S-02 | `kill -9` im Pod | Container neu gestartet, nach ~3 s bereit |
-| K8S-03 | DB-Pod gelöscht | Daten bleiben (PersistentVolume) |
+### Nachweis und Grenzen
 
-### 5.4 Was wir beim Testen gelernt und verbessert haben
+Am 24.10. wurde jede VM einzeln etwa zwei Minuten im IPv4-Netz isoliert. Nach Umschaltung waren vollständige Abläufe schon während der Trennung möglich. Alle 167 bestätigten Testkategorien blieben erhalten; längste beobachtete Fehlerphase etwa 81 s. Dies ist kein physischer Stromausfall und kein unterbrechungsfreier Betrieb. [Messwerte und Testkriterien](testprotokoll.md).
 
-1. **Zuerst gingen 1 von 20 Anfragen verloren**, wenn eine Instanz gestoppt wurde. Ursache: nginx fand beide Instanzen über einen DNS-Namen.
-   Ein nginx-Prozess, der länger nichts zu tun hatte, kannte noch eine alte Liste mit nur einer Instanz und konnte nicht ausweichen.
-   Lösung: zwei feste Einträge pro Service im `upstream`. Danach in drei Durchläufen jeweils 20/20.
-2. **Statistik lieferte 500, wenn der Kategorien-Service fehlte.** Der Timeout galt auch für das Lesen der Antwort, die zu spät gelesen wurde.
-   Lösung: Die Antwort wird jetzt innerhalb des Timeouts komplett gelesen (`client.js`).
-3. **Doppelte Wartezeit bei Ausfall** (4 s statt 2 s): nginx hat bei einer 503 des Statistik-Service die andere Instanz nochmals gefragt. Lösung: bei 503 nicht wiederholen.
-4. **`docker kill` startet einen Container nicht neu** (gilt als manuell gestoppt). Für einen echten Absturztest beenden wir deshalb den Node-Prozess *im* Container.
-5. **Kubernetes:** Beim Löschen eines Pods ging 1 Anfrage verloren, bis wir den `preStop`-Hook ergänzt haben.
-
-### 5.5 Grenzen (bewusst in Kauf genommen)
-
-- **Die Datenbank ist ein Single Point of Failure.** Fällt sie aus, sind die Services kurz nicht bereit. Dank Volume gehen keine Daten verloren.
-  Eine echte DB-Replikation (z. B. PostgreSQL-Streaming-Replication oder CloudNativePG) wäre der nächste Schritt.
-- **Ein einzelnes Gateway** in Compose ist ebenfalls ein Ausfallpunkt (es startet aber automatisch neu). In Kubernetes laufen 2 Gateway-Pods.
-- **Alles auf einer VM:** Fällt die VM aus, ist alles weg. Die verteilte Variante (Kapitel 6) und `podAntiAffinity` zeigen, wie man das auf mehrere VMs verteilt.
-- **Automatischer Neustart** verkürzt Unterbrüche, verhindert sie aber nicht. Wiederholte Abstürze verlängern in Kubernetes die Wartezeit (CrashLoopBackOff: 10 s, 20 s, …).
+Eine gemeinsame ausfallsichere Einstiegs-URL, gleichzeitiger Mehrfachausfall, Wiederherstellung nach Datenträgerverlust und Backup-Restore sind nicht nachgewiesen. Replikation ersetzt kein Backup. Alte Compose-Neustartzeiten unter zwei Sekunden sind keine VM-Umschaltzeiten.
 
 ## 6. Installation auf LernMAAS
 
-Die M321-VM (Ubuntu, 2 Cores, ~3.5 GB RAM) hat Docker und microk8s vorinstalliert. Zugang: WireGuard-VPN, dann `ssh ubuntu@<vm-ip>`.
-
-**Variante A: alles auf einer VM mit Docker Compose (empfohlen für die Demo)**
+Aktive Manifeste: `deploy/ha`. Repository auf allen VMs: `/home/ubuntu/m321-ha-20261024/repository`. Einstieg im Schulnetz/VPN: `http://10.4.31.11:30080` oder .13/.16/.17. [Betriebsanleitung mit Installationsvoraussetzungen](betrieb-cluster.md).
 
 ```bash
-git clone https://github.com/dexter-zurbruegg/M321_LB2_Leona_Zachary_Naima_Dexter.git m321
-cd m321 && git checkout develop
-./scripts/init-env.sh
-docker compose up -d --build
-./scripts/demo-daten.sh            # optional
+microk8s kubectl get nodes
+microk8s kubectl -n todo-app get deployments
+microk8s kubectl -n todo-app get cluster todo-pg
+microk8s kubectl -n todo-app get pvc
+microk8s kubectl apply --dry-run=server -k deploy/ha
 ```
 
-→ `http://<vm-ip>:8080`. Gemessener Speicherbedarf: alle 10 Container zusammen ~200 MB RAM.
-
-**Variante B: jede Person betreibt ihren Service auf ihrer eigenen VM.**
-Jeder Service startet mit seiner eigenen `docker-compose.yml` (Ports 8081–8084). Die Adressen der anderen VMs werden als Umgebungsvariablen mitgegeben.
-Das Gateway kennt die VMs über `*_UPSTREAM_1/2`. Ablauf und Befehle: [README](../README.md#variante-jeder-service-auf-seiner-eigenen-vm-n01).
-Getestet mit vier einzeln gestarteten Services hinter einem einzeln gestarteten Gateway: 35/35 API-Tests bestanden.
-
-**Variante C: Kubernetes (microk8s):** `./scripts/k8s-deploy.sh` → `http://<vm-ip>:30080`. Getestet auf k3s (35/35 API-Tests, 3/3 Ausfalltests).
+Die bestehende Installation ist geprüft. Neuaufbau benötigt zusätzlich Operator/CRDs, Images auf allen Nodes, Secrets, Storage-Pfade, Datenmigration und Hostkorrekturen. Ein vollständiger Neuaufbau wurde nicht erneut durchgeführt. `scripts/k8s-deploy.sh` und `deploy/k8s` beschreiben die ältere Einzel-Datenbank-Variante und dürfen diesen Cluster nicht ersetzen. Docker Compose bleibt separate Entwicklung auf Port 8080.
 
 ## 7. Tests (Übersicht)
 
-| Ebene | Was | Wie ausführen | Ergebnis |
-|---|---|---|---|
-| Unit-Tests | JWT-Prüfung, Statuslogik, Statistik-Berechnung | `npm test` im Service-Ordner | 14/14 ✅ |
-| API-Tests | 35 Testfälle über den Proxy, ein File pro Service + End-to-End | `BASE_URL=… node --test tests/api/` | 35/35 ✅ (Compose, Kubernetes, verteilt) |
-| Ausfalltests Compose | HA-01 bis HA-06 | `./scripts/ha-test.sh` | 6/6 ✅ (3 Durchläufe) |
-| Ausfalltests Kubernetes | K8S-01 bis K8S-03 | `./scripts/k8s-ha-test.sh` | 3/3 ✅ |
-| Manuell | Ablauf im Browser, Desktop + Mobile | siehe Testprotokoll §5 | ✅ |
+| Prüfung | Ergebnis / Datum |
+|---|---|
+| API: Benutzer 10, TODO 10, Kategorien 7, Statistik 5, Ablauf 3 | 35/35 bestanden, 24.10. und erneut 26.10. |
+| Kategorien-JWT | 10/10 bestanden, 24.10. |
+| Einzelne VM-Netzisolationen | 4/4; 167 bestätigte Kategorien erhalten, 24.10. |
+| Clusterzustand | Vier Ready-Nodes, fünf Deployments 2/2, PostgreSQL 3/3 healthy, 26.10. |
+| Kategorie-Einzelstack vor Migration | 6/6 historische Prüfungen; Prozess-/DB-Neustart nicht mit VM-Ausfall gleichsetzen |
+| Vollständige aktuelle GUI-/Mobilprüfung und Codeabdeckung | Noch offen |
 
-Testumgebung, alle Testfälle und Ergebnisse: [testprotokoll.md](testprotokoll.md).
+[Testprotokoll](testprotokoll.md): Definitionen, Umgebung, Ergebnisse, Rohbelege und Grenzen. [Präsentation](praesentation.md): vorgesehener Ablauf. Testzahlen sind kein Coverage-Prozentsatz.
 
 ## 8. Fazit und Ausblick
 
-**Fazit.** Alle Muss-Anforderungen (F01–F10, N01–N08) und die drei geplanten Zusatzfeatures sind umgesetzt und mit automatisierten Tests belegt.
-Am meisten gelernt haben wir bei den Ausfalltests. Funktionierte die Lastverteilung auf dem Papier, gingen trotzdem einzelne Anfragen verloren.
-Erst das Messen hat die Ursachen gezeigt: veraltete DNS-Information in nginx, ein Timeout an der falschen Stelle, ein fehlender `preStop`-Hook.
-Die früh festgelegten Schnittstellen (vor allem das JWT-Format) haben sich bewährt. Jede Person konnte unabhängig arbeiten, und die Integration ging ohne grössere Änderungen.
+Die Kernfunktionen arbeiten im gemeinsamen Cluster über die vereinbarten APIs zusammen. Der wesentliche Fortschritt gegenüber lokalen Einzelstacks ist die Verteilung über vier VMs mit replizierter Datenhaltung. Tests zeigen Wiederherstellung während einer andauernden Einzel-VM-Störung; die gemessene Unterbrechung bleibt eine Grenze.
 
-**Ausblick.**
-
-- Datenbank hochverfügbar machen (Replikation mit automatischem Failover).
-- Abmelden serverseitig (Token-Sperrliste) oder kurze Tokens mit Refresh-Token.
-- Monitoring: Metriken pro Service (Prometheus) und zentrale Logs (die Korrelations-ID ist schon da).
-- Echte Verteilung auf die vier LernMAAS-VMs der Gruppe mit je zwei Instanzen pro Service auf verschiedenen VMs.
-- Asynchrone Kommunikation (Message Broker) z. B. für «Konto gelöscht», damit das Löschen auch bei einem kurz ausgefallenen Service später nachgeholt wird.
+| Offen | Zuständigkeit / Abschlusskriterium |
+|---|---|
+| JWT-Vertrag einheitlich erzwingen | Leona/Dexter: UUID-sub und erforderliches endliches exp ergänzen und testen |
+| Kontolöschung bei Teilfehlern | Leona mit betroffenen Services: wiederholbarer Ablauf, Tests und korrekte Fehlerbeschreibung |
+| Persönliche Kapitel prüfen | Jede Person versteht und verantwortet ihr Kapitel; persönliche Reflexion nicht stellvertretend erfinden |
+| Weitere Tests | Naima: Grenzfälle, Readiness-/GUI-/Mobilfälle und Coverage; andere verantworten eigene Tests |
+| Demo proben | Alle: Rollen, Ablauf, Ausfall und Rückkehr zum gesunden Zustand üben |
+| Ausbau | Gemeinsame ausfallsichere URL, kürzere gemessene Umschaltphase, Backup-Restore, Monitoring |
 
 ## 9. Anhang
 
-### 9.1 Testprotokoll
+### Quellen und Nachweise
 
-Siehe [testprotokoll.md](testprotokoll.md) (Testumgebung, Testfälle, Ergebnisse, Ausfalltests).
+- [Offizieller Auftrag und Raster](https://gitlab.com/ch-tbz-it/Stud/m321/m321/-/blob/KES/Auftrag%20LB2.md), nochmals geprüft 26.10.: gemeinsame Doku mit individuell verantworteten Komponenten; finalen Branch angeben.
+- [Schulportal](https://tbz.gloke.ch/ap23a_m321/), Termine geprüft 25.10.; genaue Teams-Abgabefrist beachten.
+- [Schnittstellen](schnittstellen.md), [Tests](testprotokoll.md), [Betrieb](betrieb-cluster.md), [Planung](../planung_projektarbeit.md).
+- [dqlite Upstream PR 365](https://github.com/canonical/k8s-dqlite/pull/365); Patch und Build-Hinweise im Repository.
+- [Rohbelege 24.10.](nachweise-2026-10-24.txt), [Cluster 24.10.](cluster-2026-10-24.txt), [Einzelservice historisch](kategorien-einzelservice.txt), [API 26.10.](api-2026-10-26.txt).
 
-### 9.2 Screenshots
+![Kategorienseite während der Netztrennung von Naimas VM](Naima-Browser-Ausfalltest.png)
 
-| Desktop | Mobile |
-|---|---|
-| ![TODOs](img/todos-desktop.png) | ![TODOs mobil](img/todos-mobile.png) |
-| ![Statistik](img/stats-desktop.png) | ![Statistik mobil](img/stats-mobile.png) |
-| ![Kategorien](img/categories-desktop.png) | ![Kategorien-Service ausgefallen](img/todos-mobile-kategorien-ausfall.png) |
+Browsernachweis vom 24.10. Frühere Desktop-/Mobilbilder in `docs/img` ersetzen keine neue vollständige GUI-Abnahme.
 
-### 9.3 Quellen
-
-- Auftrag und Bewertungsraster LB2, Modulunterlagen M321 (TBZ GitLab): https://gitlab.com/ch-tbz-it/Stud/m321/m321
-- LernMAAS: https://github.com/mc-b/lernmaas
-- Express 5: https://expressjs.com · node-postgres: https://node-postgres.com · jsonwebtoken: https://github.com/auth0/node-jsonwebtoken
-- nginx Upstream / Loadbalancing: https://nginx.org/en/docs/http/ngx_http_upstream_module.html
-- Kubernetes Probes und Pod-Lifecycle: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/
-- JWT (RFC 7519): https://datatracker.ietf.org/doc/html/rfc7519
-- Bei Umsetzung und Dokumentation wurde ein KI-Assistent (Claude, Anthropic) als Hilfsmittel eingesetzt.
+Hilfsmittel: Die bisherige Doku nennt Claude (Anthropic). Für Bestandsprüfung, Clusterkorrekturen, Tests und aktuelle Doku wurde zusätzlich Codex verwendet. Aussagen sind anhand von Code, Konfiguration und Protokollen nachvollziehbar; individuelle Arbeit und Verständnis bleiben bei den Verantwortlichen.

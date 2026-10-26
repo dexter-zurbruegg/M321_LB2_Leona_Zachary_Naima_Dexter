@@ -1,5 +1,7 @@
 # Erklär-Doku Zachary: Statistik-Service + Ausfalltests
 
+Stand 26.10.2026: ergänzende Lernhilfe; [gemeinsame Doku](dokumentation.md), [Betrieb](betrieb-cluster.md) und [aktuelle Tests](testprotokoll.md) sind massgebend. Individuelle Aussagen selbst prüfen; keine persönliche Durchführung wird ergänzt.
+
 > Prüfstatus: Die unten erwähnten HA-Messungen und Fehlerprotokolle sind auf diesem Branch nicht belegt. Sie gelten als geplante Szenarien, bis eigene VM-Tests dokumentiert sind. Aktuelle Deployment-Anleitung: [deployment-zachary.md](deployment-zachary.md).
 
 > **TL;DR:** Dein Service rechnet: wie viele TODOs offen, in Bearbeitung und erledigt sind (F07) und wie lange das Erledigen im Schnitt dauert (F08).
@@ -40,7 +42,7 @@ sequenceDiagram
 ```
 
 **Warum keine eigene DB?** Die Statistik wäre sonst eine Kopie der TODOs, die veralten kann. So ist sie immer aktuell, und es gibt keine doppelten Daten.
-Preis: Ohne TODO-Service gibt es keine Statistik. Dann kommt nach 2 s eine klare Meldung (HA-05).
+Preis: Ohne TODO-Service gibt es keine Statistik. Dann kommt nach begrenzten Aufrufversuchen eine klare Meldung (HA-05).
 
 ## 3. Code-Walkthrough
 
@@ -87,22 +89,9 @@ test('Durchschnitt aus bekannten Zeitwerten (F08): 1 h und 3 h -> 2 h', () => {
 });
 ```
 
-## 4. Ausfalltests (mit Naima)
+## 4. Ausfallnachweise und Demo
 
-Siehe Naimas Erklär-Doku §4 für die Tabelle HA-01 bis HA-06. **Deine** Tests sind vor allem:
-
-- **HA-05**: beide todo-service gestoppt → `GET /stats` muss **schnell** (≤ 2 s) eine verständliche 503 liefern, nicht hängen.
-  Dabei haben wir einen Fehler gefunden: Erst kam die Antwort nach 4 s, weil nginx bei 503 die zweite Statistik-Instanz nochmals gefragt hat (Testprotokoll §9, Fehler 3).
-- **HA-04**: Kategorien weg → Statistik trotzdem 200, `categoriesAvailable: false`. Auch hier ein Fehler gefunden und behoben: Der Timeout brach das Lesen der TODO-Antwort ab (Fehler 2).
-- **Kubernetes** (`scripts/k8s-ha-test.sh`): Pod löschen (K8S-01), Absturz im Pod (K8S-02), DB-Pod löschen (K8S-03).
-
-## 5. So demonstrierst du es
-
-1. Statistik-Seite mit Demo-Daten (`./scripts/demo-daten.sh`) zeigen: Kacheln + Tabelle pro Kategorie.
-2. Neuer Benutzer ohne TODOs → «Keine Daten» bei der Ø-Zeit (F08).
-3. Ein TODO erstellen, eine Minute warten, erledigen → Ø-Zeit ~1 Min.
-4. **Unit-Tests live:** `cd services/stats-service && npm test` → 7 grüne Tests.
-5. **Ausfall:** `docker stop todo-service-1 todo-service-2` → Statistik neu laden → Meldung «Der TODO-Service ist gerade nicht erreichbar …». Wieder starten.
+[Cluster-Testprotokoll](testprotokoll.md) und [Präsentation](praesentation.md) sind massgebend. Die 5 Statistik-API-Tests und VM-Isolationen belegen die gemeinsame Integration. Zeige leere Statistik, neues erledigtes TODO und Kategorienauswertung. Unit-Tests nach installiertem npm ci mit npm test ausführen. Historische Docker-/k3s-Messungen nicht als heutige Clusterwerte ausgeben.
 
 ## 6. Fragen der Lehrperson und Antworten
 

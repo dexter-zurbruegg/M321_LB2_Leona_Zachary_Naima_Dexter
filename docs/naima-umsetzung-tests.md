@@ -1,6 +1,6 @@
 # Naima – Kategorien-Service: Umsetzung und Tests
 
-Stand: 24.10.2026. Dieses Dokument beschreibt nur Naimas Teil der M321-LB2-Arbeit und dessen Integration in die gemeinsame Anwendung.
+Stand: 26.10.2026; Ausfall-/JWT-Messungen vom 24.10.2026. Dieses Dokument beschreibt nur Naimas Teil der M321-LB2-Arbeit und dessen Integration in die gemeinsame Anwendung.
 
 ## Meine Komponente
 
@@ -68,7 +68,7 @@ Die folgenden Messungen prüfen die Verfügbarkeit **meines Kategorien-Services 
 
 Die längste beobachtete Phase mit fehlgeschlagenen Anfragen dauerte ungefähr 81 Sekunden. Die Werte beruhen auf periodischen Messungen und Anfrage-Timeouts und sind daher Näherungen. Nach jedem Versuch wurde gewartet, bis alle vier Knoten und alle drei PostgreSQL-Kopien wieder gesund waren. Bei den Datenbank-Primärserver-Ausfällen dauerte das Wiedereinbinden der zurückgekehrten Kopie länger als die Wiederherstellung der App.
 
-Die bereits geöffnete Seite unter `.11:30080` konnte während der Trennung meiner VM die Kategorie „HA-Test Naima – VM getrennt“ über einen anderen Einstieg speichern. Die erste Statistik-Abfrage zeigte noch einen verständlichen Fehler; ein erneutes Öffnen der Statistik während der weiter bestehenden Trennung funktionierte. Testkonten werden nach der Prüfung entfernt.
+Die bereits geöffnete Seite unter `.11:30080` konnte während der Trennung meiner VM die Kategorie „HA-Test Naima – VM getrennt“ über einen anderen Einstieg speichern. Die erste Statistik-Abfrage zeigte noch einen verständlichen Fehler; ein erneutes Öffnen der Statistik während der weiter bestehenden Trennung funktionierte. Das Ausfallskript versucht die Bereinigung seines Testkontos; die allgemeine API-Suite entfernt nicht alle erzeugten Konten.
 
 ![Kategorien-Seite während der Netzwerkisolierung von Naimas VM](Naima-Browser-Ausfalltest.png)
 
@@ -97,4 +97,8 @@ BASE_URL=http://10.4.31.11:30080 node --test tests/api/category.test.js tests/ap
 
 Die wiederholbaren Netzwerk-Ausfalltests liegen in `scripts/cluster-failure-test.cjs` und `scripts/isolate-vm-test.sh`. Nur eine VM gleichzeitig testen; vorher müssen alle Knoten und drei Datenbank-Instanzen gesund sein. Für die SSH-Ausführung wird ein eigener Schlüssel beziehungsweise SSH-Agent benötigt. Zugangsdaten stehen nicht in der Doku oder im Repository.
 
-Ein VM-Ausfall kann während der Erkennung und Datenbank-Umschaltung kurzzeitig Fehler auslösen. Es wird kein unterbrechungsfreier Betrieb garantiert. Eine bereits geöffnete Seite kann ihre API-Adresse wechseln; beim ersten Öffnen oder vollständigen Neuladen einer ausgefallenen VM-Adresse ist ein anderer Einstieg nötig. Die Absicherung ist für einen gleichzeitigen VM-Ausfall ausgelegt. Replikation ersetzt keine Sicherung gegen versehentliches Löschen.
+Ein VM-Ausfall kann während der Erkennung und Datenbank-Umschaltung kurzzeitig Fehler auslösen. Es wird kein unterbrechungsfreier Betrieb garantiert. Eine bereits geöffnete Seite kann ihre API-Adresse wechseln; beim ersten Öffnen oder vollständigen Neuladen einer ausgefallenen VM-Adresse ist ein anderer Einstieg nötig. Die Absicherung ist für genau einen VM-Ausfall zur selben Zeit ausgelegt. Replikation ersetzt keine Sicherung gegen versehentliches Löschen.
+
+## Aktueller Abgabe- und Teststand
+
+Der vollständige Stand wird auf main geführt. Am 26.10. erneut: 35/35 API-Tests, vier Ready-Nodes, fünf Deployments 2/2 und PostgreSQL 3/3 gesund. [Aktuelle Rohbelege und offene Grenzfälle](testprotokoll.md), [Installationsvoraussetzungen](betrieb-cluster.md). Noch kein umfassender Coverage-, GUI-/Mobil-, physischer Stromausfall- oder Restore-Nachweis. Codex unterstützte Prüfung, Korrekturen, Tests und Doku.
